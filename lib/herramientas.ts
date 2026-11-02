@@ -1,5 +1,6 @@
 import type OpenAI from "openai";
 import { buscarProductos, categorias, productos } from "./datos";
+import { buscarSemantico } from "./rag";
 import { MAX_CANTIDAD, MAX_ITEMS_COTIZACION, MINIMO_COMPRA } from "./config";
 import type { Producto } from "./types";
 
@@ -88,14 +89,20 @@ function fallo(mensaje: string): Resultado {
   return { salida: { ok: false, error: mensaje }, productos: [] };
 }
 
-function buscar(args: unknown): Resultado {
+async function buscar(args: unknown): Promise<Resultado> {
   const consulta =
     typeof args === "object" && args !== null ? (args as { consulta?: unknown }).consulta : undefined;
   if (typeof consulta !== "string" || consulta.trim().length === 0 || consulta.length > 200) {
     return fallo("La consulta debe ser un texto de hasta 200 caracteres.");
   }
 
-  const encontrados = buscarProductos(consulta, 6);
+  // Primero por significado; si no hay índice o falla la API, por palabras.
+  const semantico = await buscarSemantico(consulta, 6, 0);
+  const encontrados = semantico
+    ? semantico.productos
+        .map((x) => productos.find((p) => p.id === x.f.id))
+        .filter((p): p is Producto => Boolean(p))
+    : buscarProductos(consulta, 6);
   if (encontrados.length === 0) {
     return {
       salida: {
@@ -241,7 +248,7 @@ function cotizar(args: unknown): Resultado {
   };
 }
 
-export function ejecutarHerramienta(nombre: string, argumentos: string): Resultado {
+export async function ejecutarHerramienta(nombre: string, argumentos: string): Promise<Resultado> {
   let args: unknown;
   try {
     args = JSON.parse(argumentos);
@@ -252,7 +259,7 @@ export function ejecutarHerramienta(nombre: string, argumentos: string): Resulta
   try {
     switch (nombre) {
       case "buscar_productos":
-        return buscar(args);
+        return await buscar(args);
       case "consultar_existencias":
         return existencias(args);
       case "cotizar_productos":

@@ -1,7 +1,7 @@
-import { preguntas, temasSinInformacion, tokens } from "./datos";
+import { temasSinInformacion, tokens } from "./datos";
 import { formatearPrecio } from "./formato";
 import { MINIMO_COMPRA, WHATSAPP } from "./config";
-import type { Producto } from "./types";
+import type { Pregunta, Producto } from "./types";
 
 export const INSTRUCCIONES = `Eres el asistente virtual de una DEMOSTRACIÓN independiente de comercio electrónico, inspirada en la tienda colombiana BERPA (distribuidora de alimentos, empaques desechables y artículos de aseo). No eres un canal oficial de BERPA ni estás conectado a sus sistemas.
 
@@ -37,7 +37,7 @@ COMPRA MÍNIMA Y DOMICILIOS
 BÚSQUEDAS Y AMBIGÜEDAD
 - Si el cliente nombra un producto y la búsqueda devuelve varias opciones (varios tamaños, tipos o marcas), no escojas por él: preséntale como máximo 3 opciones y pregúntale cuál prefiere. No cotices hasta que haya elegido.
 - Si alguna opción coincide exactamente con lo que pidió y está agotada, díselo primero y luego ofrece las demás.
-- Menciona como máximo 3 productos por respuesta y presenta solo los que realmente responden a lo pedido.
+- Menciona como máximo 3 productos por respuesta, aunque las herramientas devuelvan más: elige los 3 que mejor responden a lo pedido.
 
 TARJETAS DE PRODUCTO
 - La interfaz muestra tarjetas con precio y existencias de los productos que indiques.
@@ -53,40 +53,43 @@ export function ahoraBogota(): string {
   }).format(new Date());
 }
 
-export function consultaParaProductos(mensajesUsuario: string[]): string {
+export function consultaDeBusqueda(mensajesUsuario: string[]): string {
   const ultimo = mensajesUsuario[mensajesUsuario.length - 1] ?? "";
   if (tokens(ultimo).length >= 2 || mensajesUsuario.length < 2) return ultimo;
   return `${mensajesUsuario[mensajesUsuario.length - 2]} ${ultimo}`;
 }
 
-export function construirContexto(productosRelevantes: Producto[]): string {
-  const datos = preguntas
-    .map((p) => {
-      const marca = p.verificado ? "" : " [SIN VERIFICAR]";
-      return `- ${p.pregunta} ${p.respuesta}${marca} (fuente: ${p.fuente}; fecha: ${p.fechaVerificacion})`;
-    })
-    .join("\n");
+export function construirContexto(recuperados: { productos: Producto[]; preguntas: Pregunta[] }): string {
+  const datos =
+    recuperados.preguntas.length === 0
+      ? `Ningún dato de la tienda coincidió con la consulta. Si el cliente pregunta algo de la tienda que no está en estas instrucciones, di que no tienes el dato y remite al WhatsApp ${WHATSAPP}.`
+      : recuperados.preguntas
+          .map((p) => {
+            const marca = p.verificado ? "VERIFICADO" : "SIN VERIFICAR";
+            return `- [${marca}] ${p.pregunta} ${p.respuesta} (fuente: ${p.fuente}; fecha: ${p.fechaVerificacion})`;
+          })
+          .join("\n");
 
   const temas = temasSinInformacion.map((t) => `- ${t.tema}`).join("\n");
 
   const catalogo =
-    productosRelevantes.length === 0
+    recuperados.productos.length === 0
       ? "Ningún producto coincidió con el último mensaje. Usa buscar_productos si el cliente busca algo."
-      : productosRelevantes
+      : recuperados.productos
           .map(
             (p) =>
-              `- id: ${p.id} | ${p.nombre} | subcategoría: ${p.subcategoria} | precio: ${formatearPrecio(p.precio)} | existencias de demostración: ${p.existencias ?? "desconocidas"}`
+              `- [${p.verificado ? "VERIFICADO" : "FICTICIO"}] id: ${p.id} | ${p.nombre} | subcategoría: ${p.subcategoria} | precio: ${formatearPrecio(p.precio)} | existencias de demostración: ${p.existencias ?? "desconocidas"} | fuente: ${p.fuente === "ficticio" ? "catálogo ficticio de demostración" : p.fuente}`
           )
           .join("\n");
 
   return `FECHA Y HORA ACTUAL (Colombia): ${ahoraBogota()}
 
-DATOS DE LA TIENDA (fuente: textos y capturas de berpa.com.co aportados por el usuario):
+DATOS DE LA TIENDA RELEVANTES PARA ESTA CONSULTA (fuente: textos y capturas de berpa.com.co aportados por el usuario):
 ${datos}
 
 TEMAS SIN INFORMACIÓN (no hay datos verificados; remite a WhatsApp ${WHATSAPP}):
 ${temas}
 
-PRODUCTOS POSIBLEMENTE RELEVANTES DEL CATÁLOGO DE DEMOSTRACIÓN (ficticios):
+PRODUCTOS POSIBLEMENTE RELEVANTES DEL CATÁLOGO DE DEMOSTRACIÓN (ficticios, no son datos reales de la tienda):
 ${catalogo}`;
 }

@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "indexar": "node --env-file=.env.local scripts/indexar.mjs",
+    "evaluar": "node scripts/evaluar.mjs"
   },
   "dependencies": {
     "next": "16.4.3",

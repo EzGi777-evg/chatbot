@@ -4,7 +4,8 @@ import { buscarPreguntas, buscarProductos, detectarTemasSinInformacion } from "@
 import { permitirSolicitud } from "@/lib/limite";
 import { LIMITES, WHATSAPP } from "@/lib/config";
 import { claveConfigurada, obtenerCliente, obtenerModelo } from "@/lib/openai";
-import { INSTRUCCIONES, construirContexto, consultaParaProductos } from "@/lib/prompt";
+import { INSTRUCCIONES, construirContexto, consultaDeBusqueda } from "@/lib/prompt";
+import { recuperar } from "@/lib/rag";
 import { HERRAMIENTAS, ejecutarHerramienta } from "@/lib/herramientas";
 import type { Producto, RespuestaChat } from "@/lib/types";
 
@@ -143,10 +144,11 @@ export async function POST(request: Request) {
   }
 
   const usuarios = mensajes.filter((m) => m.role === "user").map((m) => m.content);
-  const relevantes = buscarProductos(consultaParaProductos(usuarios), 5);
+  const recuperados = await recuperar(consultaDeBusqueda(usuarios));
+  console.log(`[rag] modo: ${recuperados.modo}, ${recuperados.ms} ms`);
 
   const conocidos = new Map<string, Producto>();
-  relevantes.forEach((p) => conocidos.set(p.id, p));
+  recuperados.productos.forEach((p) => conocidos.set(p.id, p));
 
   const input: OpenAI.Responses.ResponseInputItem[] = mensajes.map((m) => ({
     role: m.role,
@@ -155,7 +157,7 @@ export async function POST(request: Request) {
 
   try {
     const cliente = obtenerCliente();
-    const instrucciones = `${INSTRUCCIONES}\n\n${construirContexto(relevantes)}`;
+    const instrucciones = `${INSTRUCCIONES}\n\n${construirContexto(recuperados)}`;
     let bruto = "";
 
     for (let vuelta = 0; vuelta < MAX_VUELTAS; vuelta++) {
@@ -187,7 +189,7 @@ export async function POST(request: Request) {
           arguments: llamada.arguments,
         });
 
-        const resultado = ejecutarHerramienta(llamada.name, llamada.arguments);
+        const resultado = await ejecutarHerramienta(llamada.name, llamada.arguments);
         resultado.productos.forEach((p) => conocidos.set(p.id, p));
 
         input.push({
@@ -218,7 +220,9 @@ export async function POST(request: Request) {
       productos,
       simulada: false,
     };
-    return NextResponse.json(salida);
+    return NextResponse.json(salida, {
+      headers: { "X-Recuperacion": `${recuperados.modo}; ${recuperados.ms}ms` },
+    });
   } catch (e) {
     const { status, mensaje } = describirError(e);
     console.error(

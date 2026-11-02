@@ -42,13 +42,16 @@ NO es oficial de BERPA ni está conectado a sus sistemas.
 - `app/api/chat/route.ts`: endpoint del chat. Valida mensajes, limita por IP, arma el contexto y ejecuta
   el ciclo de herramientas con la API Responses. Sin clave configurada responde en modo simulado
   con el buscador local. Si la respuesta trae productos y no dice "demostración", agrega la nota.
-- `app/api/catalogo/route.ts`: endpoint temporal de depuración del buscador (se elimina en la fase 4).
+- `app/api/catalogo/route.ts`: endpoint temporal que compara buscador por palabras y semántico (se elimina en la fase 4).
 - `components/`: `Chatbot` (panel de chat), `ChatProduct` (tarjetas en el chat), `Header`,
   `CategoryExplorer`, `ProductCard`, cada uno con su `.module.css`.
 - `lib/config.ts`: límites, WhatsApp y compra mínima ($80.000, sobre productos, sin domicilio).
 - `lib/datos.ts`: carga de `data/*.json` y buscador por palabras (productos, preguntas, temas sin información).
-- `lib/prompt.ts`: instrucciones del sistema y contexto por turno (datos de la tienda con fuente y marca
-  verificado/sin verificar, temas sin información, productos relevantes).
+- `lib/rag.ts`: búsqueda semántica sobre `data/indice-embeddings.json` (coseno en memoria, caché de consultas,
+  pausa de 60 s tras una falla de la API). Si no hay índice válido o falla la API, usa el buscador por palabras.
+  El índice se invalida solo si cambian productos o preguntas (hash) o el modelo.
+- `lib/prompt.ts`: instrucciones del sistema y contexto por turno: solo los fragmentos recuperados, con su fuente y
+  marca (VERIFICADO / SIN VERIFICAR / FICTICIO), más la lista de temas sin información.
 - `lib/herramientas.ts`: herramientas del modelo (`buscar_productos`, `consultar_existencias` con alternativas,
   `cotizar_productos`, que solo informa el total y la compra mínima y no guarda nada).
 - `lib/openai.ts`: cliente y modelo (variables `OPENAI_API_KEY`, `OPENAI_MODEL`).
@@ -58,9 +61,13 @@ NO es oficial de BERPA ni está conectado a sus sistemas.
   `scripts/generar-productos.mjs`. `data/categorias.json`: categorías reales del sitio.
   `data/preguntas.json`: preguntas frecuentes con fuente, fecha y marca `verificado`, y temas sin información.
 - `scripts/probar.sh`: envía mensajes sueltos a `/api/chat` (requiere `npm run dev`).
+- `scripts/indexar.mjs` (`npm run indexar`): genera el índice con `OPENAI_EMBEDDING_MODEL` (512 dimensiones). Embebe solo
+  nombre + subcategoría + categoría + frase de uso; la marca ficticio/verificado va como metadato. Repetir tras cambiar
+  `data/productos.json` o `data/preguntas.json`.
+- `scripts/evaluar.mjs` (`npm run evaluar`): 12 casos de comportamiento contra el servidor en marcha.
 
 ## Comandos
 
-- `npm run dev`, `npm run build`, `npm run lint`, `npx tsc --noEmit`.
+- `npm run dev`, `npm run build`, `npm run lint`, `npx tsc --noEmit`, `npm run indexar`, `npm run evaluar`.
 
 Mantener esta sección de estructura al día al cerrar cada fase.

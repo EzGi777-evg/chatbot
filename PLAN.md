@@ -1,6 +1,7 @@
 # Plan de trabajo: fases 2 a 4
 
 Las reglas del proyecto están en `CLAUDE.md`. La fase 1 (chatbot de solo consulta) está cerrada en el commit `838a6df`.
+La fase 2 (RAG) está implementada; sus resultados están al final de este archivo.
 
 ## Acuerdos vigentes
 
@@ -49,7 +50,8 @@ Trabajo:
 
 1. Antes de empezar se entregan los pasos exactos para instalar Docker Engine y el plugin Compose en Ubuntu,
    para que los ejecute el usuario. Luego se verifica con `docker --version` y `docker compose version`.
-2. `next.config.ts`: `output: "standalone"`. Nada de Tailwind ni reglas de Turbopack para CSS.
+2. `next.config.ts`: `output: "standalone"` y `outputFileTracingIncludes` para `data/indice-embeddings.json`
+   (se lee con `fs`, no se importa). Nada de Tailwind ni reglas de Turbopack para CSS.
 3. `Dockerfile` multi-etapa sobre `node:22-alpine`:
    - deps (`npm ci`)
    - build (`next build`; `next/font/google` necesita red durante el build)
@@ -86,3 +88,18 @@ Trabajo:
    Docker, pruebas y un guion de demostración de 5 minutos.
 7. Limpiar datos de prueba y archivos temporales. Lista previa y OK antes de borrar.
 8. Cierre: `tsc`, `lint`, `test:humo`, `evaluar`, lista de archivos, commit y push.
+
+## Resultados de la fase 2 (medidos el 2026-11-02)
+
+- Indexado: 309 fragmentos (300 productos + 9 preguntas), 12.545 tokens, unos 3 s, archivo de 1,5 MB (512 dimensiones).
+- Embeber una consulta: unos 10 tokens; mediana 313 ms, p90 622 ms (20 consultas). Una consulta repetida sale de la
+  caché en memoria en ~1 ms.
+- Costo con el precio de lista de `text-embedding-3-small` (US$0,02 por millón de tokens; verificarlo en la página de
+  precios de OpenAI): indexar ≈ US$0,00025 y cada consulta ≈ US$0,0000002. Es despreciable frente a la llamada al modelo
+  de chat de cada turno.
+- Recuperación directa (endpoint de depuración): el semántico acierta en búsquedas por intención donde el de palabras
+  falla ("lavar platos", "para freír", "quitar grasa de las ollas", "algo para el desayuno"); empatan en nombres exactos.
+- Chat completo (`npm run evaluar`): 12/12 con embeddings y 12/12 solo con palabras (tras corregir un falso positivo
+  del evaluador). El modelo compensa al reformular la consulta en `buscar_productos`. Turno completo: mediana 1,76 s
+  con embeddings contra 1,21 s solo con palabras (en una corrida; la variación del modelo de chat es grande).
+- Respaldos probados: sin índice y con la API de embeddings caída (404), el chat responde con el buscador por palabras.

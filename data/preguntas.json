@@ -1,0 +1,95 @@
+{
+  "aviso": "Información tomada de capturas y textos de berpa.com.co aportados por el usuario. Debe verificarse antes de cualquier uso comercial.",
+  "preguntas": [
+    {
+      "id": "compra-minima",
+      "pregunta": "¿Cuál es la compra mínima para pedir a domicilio?",
+      "palabrasClave": ["compra minima", "pedido minimo", "monto minimo", "minimo para pedir", "minimo de compra"],
+      "respuesta": "La compra mínima para pedir a domicilio es de $80.000.",
+      "fuente": "Franja superior de berpa.com.co y confirmación del usuario (2026-10-28). Un banner de la página de inicio mostraba $50.000, que no es el valor vigente.",
+      "fechaVerificacion": "2026-10-28",
+      "verificado": true
+    },
+    {
+      "id": "cobertura",
+      "pregunta": "¿A qué municipios y barrios llegan los domicilios?",
+      "palabrasClave": ["cobertura", "barrio", "municipio", "zona", "ciudades", "envian", "entregan", "llegan", "todo pais", "nacional", "otras ciudades"],
+      "respuesta": "Los envíos publicados llegan a Envigado, Itagüí, La Estrella, Medellín y Sabaneta. La tienda invita a consultar si un barrio específico tiene cobertura. Además, indica que realiza envíos a todo el país comunicándose con la línea de WhatsApp 3023322766.",
+      "fuente": "Banner y franja superior de la página de inicio de berpa.com.co (capturas y texto aportados por el usuario)",
+      "fechaVerificacion": "2026-10-28",
+      "verificado": true
+    },
+    {
+      "id": "dias-entrega",
+      "pregunta": "¿Qué días hacen entregas?",
+      "palabrasClave": ["dias de entrega", "que dias", "cuando entregan", "tiempo de entrega", "demora", "cuanto tarda"],
+      "respuesta": "Según la tienda, el tiempo de entrega es de lunes a sábado. Los domingos y los lunes festivos no hay servicio a domicilio; en esos días solo se ofrece recogida en tienda.",
+      "fuente": "Banner y franja superior de la página de inicio de berpa.com.co (capturas y texto aportados por el usuario)",
+      "fechaVerificacion": "2026-10-28",
+      "verificado": true
+    },
+    {
+      "id": "hora-corte",
+      "pregunta": "¿Hasta qué hora puedo hacer el pedido para que se envíe el mismo día?",
+      "palabrasClave": ["hora de corte", "mismo dia", "hasta que hora", "despachan", "dia siguiente", "pedido sabado"],
+      "respuesta": "Según la tienda, si el pedido se toma antes de las 12:00 m. se envía el mismo día; de lo contrario queda para el siguiente día hábil. Los pedidos del sábado después de las 12:00 m. se envían el lunes.",
+      "fuente": "Banner y franja superior de la página de inicio de berpa.com.co (capturas y texto aportados por el usuario)",
+      "fechaVerificacion": "2026-10-28",
+      "verificado": true
+    },
+        {
+      "id": "costo-domicilio",
+      "pregunta": "¿Cuánto cuesta el domicilio?",
+      "palabrasClave": ["costo domicilio", "valor domicilio", "precio domicilio", "costo envio", "valor envio", "precio envio", "cobran domicilio", "cobran envio", "cuanto cuesta domicilio", "cuanto cuesta envio"],
+      "respuesta": "La tienda publica un costo de domicilio de $7.500 al sur y de hasta $13.000 a Medellín. En Medellín el valor depende de la distancia: desde $7.000 para 0 a 4 km, sube $1.000 por cada kilómetro adicional y el máximo es $13.000 para más de 10 km. Para conocer el valor exacto de tu dirección, confírmalo por WhatsApp (3023322766).",
+      "fuente": "Franja superior de berpa.com.co (7.500 al sur; 13.000 Medellín) y descripción de la tarifa por distancia en Medellín aportada por el usuario, no publicada en el sitio.",
+      "fechaVerificacion": "2026-10-28",
+      "verificado": false
+    },
+    {
+      "id": "domingos-festivos",
+      "pregunta": "¿Hacen domicilios los domingos y festivos?",
+      "palabrasClave": ["domingo", "festivo", "recoger en tienda", "recogida en tienda", "punto fisico"],
+      "respuesta": "Según la tienda, los domingos y los lunes festivos no hay servicio a domicilio; en esos días solo se ofrece recogida en tienda.",
+      "fuente": "Franja superior de la página de inicio de berpa.com.co (texto aportado por el usuario)",
+      "fechaVerificacion": "2026-10-28",
+      "verificado": true
+    },
+    {
+      "id": "ubicacion",
+      "pregunta": "¿Dónde están ubicados?",
+      "palabrasClave": ["donde estan ubicados", "ubicacion", "sede", "tienda fisica"],
+      "respuesta": "La tienda indica que está ubicada en los municipios de Envigado e Itagüí. La dirección exacta no está en la información disponible; conviene consultarla por WhatsApp (3023322766).",
+      "fuente": "Franja superior de la página de inicio de berpa.com.co (texto aportado por el usuario)",
+      "fechaVerificacion": "2026-10-28",
+      "verificado": true
+    },
+    {
+      "id": "contacto-whatsapp",
+      "pregunta": "¿Cómo puedo contactarlos?",
+      "palabrasClave": ["contacto", "whatsapp", "telefono", "linea de atencion", "llamar", "comunicarme"],
+      "respuesta": "La línea de WhatsApp publicada por la tienda es 3023322766.",
+      "fuente": "Franja superior de la página de inicio de berpa.com.co (texto aportado por el usuario)",
+      "fechaVerificacion": "2026-10-28",
+      "verificado": true
+    },
+    {
+      "id": "categorias",
+      "pregunta": "¿Qué categorías de productos manejan?",
+      "palabrasClave": ["categorias", "que venden", "que productos", "que manejan", "catalogo", "tipos de productos"],
+      "respuesta": "La tienda muestra siete categorías: Empaques y desechables; Carnes frías, congelados y apanados; Lácteos y refrigerados; Salsas y aderezos; Panadería, repostería y snacks; Despensa; y Aseo hogar.",
+      "fuente": "Menú de categorías de berpa.com.co (capturas aportadas por el usuario)",
+      "fechaVerificacion": "2026-10-28",
+      "verificado": true
+    }
+  ],
+  "temasSinInformacion": [
+    { "tema": "Medios de pago", "palabrasClave": ["medios de pago", "formas de pago", "metodos de pago", "tarjeta", "efectivo", "pse", "contraentrega", "nequi"] },
+    { "tema": "Envío gratis", "palabrasClave": ["envio gratis", "domicilio gratis", "flete gratis"] },
+    { "tema": "Horarios de atención de la tienda", "palabrasClave": ["horario de atencion", "horario atencion", "abren", "cierran", "hora de apertura", "hora de cierre"] },
+    { "tema": "Correo electrónico y dirección exacta de la tienda", "palabrasClave": ["correo", "email", "direccion exacta", "direccion de la tienda"] },
+    { "tema": "Devoluciones y garantías", "palabrasClave": ["devolucion", "devolver", "garantia", "reclamo", "cambio de producto"] },
+    { "tema": "Promociones y ofertas", "palabrasClave": ["promocion", "oferta", "descuento", "cupon", "rebaja"] },
+    { "tema": "Estado de pedidos ya realizados y cuentas de clientes", "palabrasClave": ["estado del pedido", "donde esta mi pedido", "rastrear", "mi cuenta", "cancelar pedido", "factura"] }
+  ]
+}

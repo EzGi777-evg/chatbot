@@ -1,0 +1,179 @@
+.fab {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  width: 58px;
+  height: 58px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--azul);
+  color: var(--blanco);
+  font-size: 1.5rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 60;
+}
+
+.panel {
+  position: fixed;
+  right: 20px;
+  bottom: 90px;
+  width: min(390px, calc(100vw - 24px));
+  height: min(620px, calc(100dvh - 110px));
+  display: flex;
+  flex-direction: column;
+  background: var(--blanco);
+  border-radius: 16px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+  z-index: 60;
+}
+
+.header {
+  background: var(--azul);
+  color: var(--blanco);
+  padding: 12px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.titulo { display: flex; flex-direction: column; }
+.demo { font-size: 0.7rem; color: var(--amarillo); }
+.nueva {
+  background: transparent;
+  color: var(--blanco);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-size: 0.72rem;
+}
+.nueva:hover { background: rgba(255, 255, 255, 0.15); }
+
+.mensajes {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: #f6f5fb;
+}
+
+.fila { display: flex; flex-direction: column; gap: 6px; max-width: 92%; }
+.filaBot { align-self: flex-start; }
+.filaUsuario { align-self: flex-end; align-items: flex-end; }
+
+.burbuja {
+  padding: 10px 12px;
+  border-radius: 14px;
+  font-size: 0.88rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.bot { background: var(--blanco); box-shadow: var(--sombra); border-bottom-left-radius: 4px; }
+.usuario { background: var(--azul); color: var(--blanco); border-bottom-right-radius: 4px; }
+
+.productos { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+.nota { font-size: 0.68rem; color: #6b6b78; }
+
+.sugerencias { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  border: 1px solid var(--azul);
+  background: var(--blanco);
+  color: var(--azul);
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 0.78rem;
+}
+.chip:hover { background: #ebe6ff; }
+
+.puntos { display: inline-flex; gap: 4px; align-items: center; height: 14px; }
+.puntos i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--azul);
+  opacity: 0.3;
+  animation: salto 1s infinite;
+}
+.puntos i:nth-child(2) { animation-delay: 0.15s; }
+.puntos i:nth-child(3) { animation-delay: 0.3s; }
+@keyframes salto {
+  0%, 80%, 100% { opacity: 0.3; transform: translateY(0); }
+  40% { opacity: 1; transform: translateY(-3px); }
+}
+
+.error {
+  background: #fdecea;
+  color: #8a1c12;
+  border: 1px solid #f5b5ae;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 0.82rem;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+}
+.reintentar {
+  background: var(--azul);
+  color: var(--blanco);
+  border: 0;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 0.78rem;
+}
+
+.form {
+  display: flex;
+  gap: 8px;
+  padding: 10px;
+  border-top: 1px solid #e1dff0;
+  background: var(--blanco);
+}
+.form input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid #cfcbe6;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 16px;
+  outline: none;
+}
+.form input:focus { border-color: var(--azul); }
+.form button {
+  background: var(--azul);
+  color: var(--blanco);
+  border: 0;
+  border-radius: 10px;
+  padding: 0 14px;
+}
+.form button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.pie {
+  font-size: 0.65rem;
+  color: #6b6b78;
+  text-align: center;
+  padding: 0 10px 8px;
+  background: var(--blanco);
+}
+
+@media (max-width: 600px) {
+  .panel {
+    left: 12px;
+    right: 12px;
+    bottom: 84px;
+    width: auto;
+    height: calc(100dvh - 100px);
+  }
+  .fab { right: 12px; bottom: 12px; }
+}
+.solicitud {
+  background: #e7f6ec;
+  color: #14532d;
+  border: 1px solid #a8d8b9;
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-size: 0.78rem;
+  font-weight: 600;
+}

@@ -1,0 +1,120 @@
+.header { background: var(--blanco); }
+
+.top {
+  background: var(--amarillo);
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 20px 32px;
+  flex-wrap: wrap;
+  position: relative;
+  overflow: hidden;
+}
+
+.top::after {
+  content: "";
+  position: absolute;
+  right: -80px;
+  bottom: -120px;
+  width: 360px;
+  height: 240px;
+  border-radius: 50%;
+  border: 28px solid var(--naranja);
+  opacity: 0.8;
+  pointer-events: none;
+}
+
+.brand {
+    display: flex;
+    flex-direction: column;
+    z-index: 1;
+}
+
+.brandName { 
+    font-family: var(--fuente-titulos); 
+    font-size: 3rem; 
+    color: var(--azul); 
+    line-height: 1; 
+    letter-spacing: 1px; 
+}
+.brandTag { 
+    font-size: 0.7rem; 
+    color: var(--azul-oscuro); 
+    font-weight: 600; 
+}
+
+.search {
+  flex: 1 1 280px;
+  max-width: 550px;
+  display: flex;
+  background: var(--blanco);
+  border-radius: 8px;
+  overflow: hidden;
+  z-index: 1;
+}
+.search input { 
+    flex: 1; 
+    border: 0; 
+    padding: 12px 14px; 
+    outline: none; 
+    min-width: 0; 
+}
+
+.search button { 
+    border: 0; 
+    background: transparent; 
+    padding: 0 14px; 
+    font-size: 1.1rem; 
+}
+
+.actions { 
+    display: flex; 
+    gap: 8px; 
+    margin-left: auto; 
+    z-index: 1; 
+}
+
+.action {
+  background: var(--azul);
+  color: var(--blanco);
+  border: 0;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 0.85rem;
+}
+
+.tabs { 
+    display: grid; 
+    grid-template-columns: repeat(3, 1fr); 
+    gap: 0; 
+}
+
+.tab, .tabActive {
+  border: 1px solid var(--azul);
+  padding: 10px;
+  font-size: 0.95rem;
+  color: var(--azul);
+  background: var(--blanco);
+}
+
+.tabActive { 
+    background: var(--azul); 
+    color: var(--blanco); 
+}
+
+@media (max-width: 700px) {
+  .top { 
+        padding: 16px; 
+        gap: 12px; 
+    }
+  .actions { 
+        margin-left: 0; 
+        width: 100%; 
+        justify-content: flex-end; 
+    }
+  .search { 
+        max-width: none; 
+        flex-basis: 100%; 
+        order: 3; 
+    }
+}

@@ -1,0 +1,33 @@
+.card {
+  display: flex;
+  gap: 10px;
+  background: var(--blanco);
+  border: 1px solid #e1dff0;
+  border-radius: 10px;
+  padding: 8px;
+}
+
+.thumb, .img {
+  flex: 0 0 48px;
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.thumb {
+  display: grid;
+  place-items: center;
+  font-size: 1.3rem;
+  background: repeating-linear-gradient(45deg, #f4f1ff, #f4f1ff 8px, #ebe6ff 8px, #ebe6ff 16px);
+}
+
+.info { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.name { font-size: 0.82rem; }
+.sub { font-size: 0.7rem; color: #6b6b78; }
+.price { font-size: 0.82rem; font-weight: 600; color: var(--azul); }
+.stock { font-size: 0.7rem; font-weight: 600; }
+.ok { color: #1b7a3d; }
+.bajo { color: #a15c00; }
+.agotado { color: #b3261e; }
+.desconocido { color: #6b6b78; }

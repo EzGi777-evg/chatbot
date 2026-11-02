@@ -1,0 +1,78 @@
+{
+  "fuente": "Capturas de pantalla de berpa.com.co aportadas por el usuario",
+  "fechaVerificacion": "2026-10-28",
+  "nota": "Los íconos (emojis) son provisionales. La lista de Carnes frías puede estar incompleta.",
+  "categorias": [
+    {
+      "id": "empaques-desechables",
+      "nombre": "Empaques y desechables",
+      "icono": "📦",
+      "subcategorias": [
+        "Platos y bandejas", "Línea ecológica", "Servilletas, higiénicos y toallas", "Bolsas",
+        "Portacomidas cartón, icopor y aluminio", "Neveras de icopor", "Bases, cajas y domos",
+        "Papel chicle, parafinado y aluminio", "Pitillos, mezcladores y palos de madera",
+        "Carbón, encendedores y otros", "Cubiertos", "Contenedores y Sello Plus",
+        "Vasos y tapas", "Copas y tapas", "Guantes, gorros y tapabocas"
+      ]
+    },
+    {
+      "id": "carnes-frias",
+      "nombre": "Carnes frías, congelados y apanados",
+      "icono": "🥩",
+      "subcategorias": [
+        "Mortadela y jamón", "Salchichas y salchichones", "Chorizos, butifarras y longanizas",
+        "Tocinetas", "Carnes de hamburguesa y productos preparados", "Filetes y chuzos",
+        "Palitos y panzerotis", "Empanadas y patacones", "Maíz y papas congeladas",
+        "Pinchos, nuggets y milanesas"
+      ]
+    },
+    {
+      "id": "lacteos-refrigerados",
+      "nombre": "Lácteos y refrigerados",
+      "icono": "🥛",
+      "subcategorias": [
+        "Leches y yogurt", "Helados", "Quesos, quesitos y cuajadas",
+        "Mantequillas y esparcibles", "Cremas de leche", "Arepas", "Ensaladas preparadas"
+      ]
+    },
+    {
+      "id": "salsas-aderezos",
+      "nombre": "Salsas y aderezos",
+      "icono": "🍅",
+      "subcategorias": [
+        "Salsas tradicionales", "Salsas especiales", "Salsas dulces",
+        "Sazonadores", "Vinagretas y vinagres"
+      ]
+    },
+    {
+      "id": "panaderia-snacks",
+      "nombre": "Panadería, repostería y snacks",
+      "icono": "🥐",
+      "subcategorias": [
+        "Repostería", "Mezclas listas, harinas y apanadores", "Tortillas", "Galletas",
+        "Panadería", "Cereales y frutos frescos", "Papa ripio y snacks",
+        "Dulces tradicionales y confites"
+      ]
+    },
+    {
+      "id": "despensa",
+      "nombre": "Despensa",
+      "icono": "🛒",
+      "subcategorias": [
+        "Aceites y margarinas", "Cafés y chocolates", "Modificadores de leche",
+        "Granos, pastas, enlatados y huevos", "Condimentos", "Aromáticas e infusiones",
+        "Azúcar y endulzantes", "Bebidas y siropes"
+      ]
+    },
+    {
+      "id": "aseo-hogar",
+      "nombre": "Aseo hogar",
+      "icono": "🧴",
+      "subcategorias": [
+        "Lavalozas", "Escobas, traperos y recogedores", "Limpiadores y desinfectantes",
+        "Detergentes y blanqueadores", "Esponjas y paños",
+        "Jabón manos y antibacteriales", "Guantes, gorros y tapabocas"
+      ]
+    }
+  ]
+}

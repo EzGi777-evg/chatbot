@@ -1,0 +1,54 @@
+.card {
+    background: var(--blanco);
+    border-radius: var(--radio);
+    box-shadow: var(--sombra);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+.image, .placeholder {
+    width: 100%;
+    aspect-ratio: 4 / 3; 
+    object-fit: cover;
+}
+
+.placeholder {
+  display: grid;
+  place-items: center;
+  background: repeating-linear-gradient(45deg, #f4f1ff, #f4f1ff 10px, #ebe6ff 10px, #ebe6ff 20px);
+  color: var(--azul);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.body {
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.name {
+    font-size: 0.95rem;
+    font-weight: 600;
+}
+
+.desc {
+    font-size: 0.8rem;
+    color: #5a5a66;
+}
+
+.price {
+    font-weight: 600;
+    color: var(--azul);
+}
+
+.badge {
+    align-self: flex-start;
+    background: var(--amarillo);
+    color: var(--azul-oscuro);
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 999px;
+}

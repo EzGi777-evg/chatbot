@@ -39,10 +39,10 @@ NO es oficial de BERPA ni está conectado a sus sistemas.
 ## Estructura
 
 - `app/page.tsx`, `app/layout.tsx`: página de demostración (aviso de no afiliación, catálogo destacado, chat).
+- `app/api/salud/route.ts`: healthcheck del contenedor; devuelve solo `{"ok": true}`.
 - `app/api/chat/route.ts`: endpoint del chat. Valida mensajes, limita por IP, arma el contexto y ejecuta
   el ciclo de herramientas con la API Responses. Sin clave configurada responde en modo simulado
   con el buscador local. Si la respuesta trae productos y no dice "demostración", agrega la nota.
-- `app/api/catalogo/route.ts`: endpoint temporal que compara buscador por palabras y semántico (se elimina en la fase 4).
 - `components/`: `Chatbot` (panel de chat), `ChatProduct` (tarjetas en el chat), `Header`,
   `CategoryExplorer`, `ProductCard`, cada uno con su `.module.css`.
 - `lib/config.ts`: límites, WhatsApp y compra mínima ($80.000, sobre productos, sin domicilio).
@@ -65,6 +65,15 @@ NO es oficial de BERPA ni está conectado a sus sistemas.
   nombre + subcategoría + categoría + frase de uso; la marca ficticio/verificado va como metadato. Repetir tras cambiar
   `data/productos.json` o `data/preguntas.json`.
 - `scripts/evaluar.mjs` (`npm run evaluar`): 12 casos de comportamiento contra el servidor en marcha.
+
+## Docker
+
+- `Dockerfile` multi-etapa (`node:22-alpine`): deps → build (`output: "standalone"`) → runner con usuario `node`
+  (uid 1000) y `HEALTHCHECK` contra `/api/salud`. `next.config.ts` incluye el índice con `outputFileTracingIncludes`.
+- `docker-compose.yml`: servicio `chatbot`, imagen `chatbot-demo`, `env_file: .env.local` (nunca entra en la imagen),
+  sistema de archivos de solo lectura, `cap_drop: ALL` y `no-new-privileges`.
+- `.dockerignore` excluye `.env*`, `node_modules`, `.next` y `.git`.
+- Levantar: `docker compose up --build`; detener: `docker compose down`. Detener antes `npm run dev` (puerto 3000).
 
 ## Comandos
 

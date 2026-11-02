@@ -82,7 +82,7 @@ Trabajo:
    - sin red o timeout
    Se verifica que cada caso muestra el mensaje amable correcto y que el RAG cae al buscador por palabras.
 3. Revisión del diseño en móvil (unos 375 px): panel del chat, tarjetas, sugerencias y teclado.
-4. Eliminar `app/api/catalogo/` (antes se muestra la lista de borrado y se espera OK).
+4. ~~Eliminar `app/api/catalogo/`~~: hecho antes de la fase 3, con OK del usuario (llamaba a la API de embeddings sin límite).
 5. `npm run test:humo`: reúne `probar.sh`, la validación de límites y los casos de seguridad en un solo script.
 6. `README.md`: qué es (con el aviso de no afiliación), requisitos, instalación local, variables, `npm run indexar`,
    Docker, pruebas y un guion de demostración de 5 minutos.
@@ -103,3 +103,12 @@ Trabajo:
   del evaluador). El modelo compensa al reformular la consulta en `buscar_productos`. Turno completo: mediana 1,76 s
   con embeddings contra 1,21 s solo con palabras (en una corrida; la variación del modelo de chat es grande).
 - Respaldos probados: sin índice y con la API de embeddings caída (404), el chat responde con el buscador por palabras.
+
+## Resultados de la fase 3 (2026-11-02)
+
+- Docker 29.9.2 y Compose v5.7.0, instalados por el usuario.
+- Imagen `chatbot-demo` de 337 MB. El contenedor queda *healthy* en unos 8 s y corre como `uid=1000(node)`.
+- Sin secretos: `ls -a` en `/app` muestra solo `.next data node_modules package.json public server.js`; `find /` no
+  encuentra ningún `.env*`; `docker history` no menciona `.env` ni claves; las variables de la imagen son solo las de
+  Node y Next.js. Las tres coincidencias del patrón `sk-…` son cadenas de Next.js y de `sharp`, no claves.
+- Desde el contenedor: `npm run evaluar` da 12/12, con recuperación semántica en los 15 turnos del log.

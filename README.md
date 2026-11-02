@@ -1,3 +1,20 @@
+## Ejecutar con Docker
+
+Requisitos: Docker con el plugin Compose y un archivo `.env.local` en la raíz con las variables de `.env.example`
+(`OPENAI_API_KEY`, `OPENAI_MODEL`, `OPENAI_EMBEDDING_MODEL`). Ese archivo solo lo lee `docker compose` al crear el
+contenedor: no se copia a la imagen.
+
+```bash
+docker compose up --build        # construye la imagen y levanta el chat en http://localhost:3000
+docker compose up --build -d     # igual, en segundo plano
+docker compose ps                # estado; debe decir (healthy)
+docker compose logs -f chatbot   # ver el log (Ctrl+C para salir del log)
+docker compose down              # detener y borrar el contenedor (la imagen se conserva)
+```
+
+Si `npm run dev` está corriendo, detenlo antes: los dos usan el puerto 3000. Si cambias `data/productos.json` o
+`data/preguntas.json`, ejecuta `npm run indexar` antes de reconstruir la imagen.
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started

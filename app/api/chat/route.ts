@@ -220,9 +220,7 @@ export async function POST(request: Request) {
       productos,
       simulada: false,
     };
-    return NextResponse.json(salida, {
-      headers: { "X-Recuperacion": `${recuperados.modo}; ${recuperados.ms}ms` },
-    });
+    return NextResponse.json(salida);
   } catch (e) {
     const { status, mensaje } = describirError(e);
     console.error(

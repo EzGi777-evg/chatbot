@@ -120,7 +120,6 @@ async function preguntar(mensaje) {
   return {
     status: res.status,
     ms,
-    recuperacion: res.headers.get("x-recuperacion") ?? "-",
     respuesta: datos.respuesta ?? "",
     productos: datos.productos ?? [],
     error: datos.error,
@@ -130,7 +129,6 @@ async function preguntar(mensaje) {
 
 let aprobados = 0;
 const tiempos = [];
-const recuperaciones = [];
 
 for (const caso of CASOS) {
   let r;
@@ -150,10 +148,8 @@ for (const caso of CASOS) {
   const ok = fallas.length === 0;
   if (ok) aprobados++;
   tiempos.push(r.ms);
-  const rag = r.recuperacion.match(/(\w+); (\d+)ms/);
-  if (rag) recuperaciones.push({ modo: rag[1], ms: Number(rag[2]) });
 
-  console.log(`${ok ? "✔" : "✘"} ${caso.nombre}  (${r.ms} ms, recuperación: ${r.recuperacion})`);
+  console.log(`${ok ? "✔" : "✘"} ${caso.nombre}  (${r.ms} ms)`);
   if (!ok) {
     fallas.forEach((f) => console.log(`    - ${f}`));
     console.log(`    respuesta: ${r.respuesta.replace(/\n+/g, " ").slice(0, 300)}`);
@@ -166,7 +162,5 @@ console.log(`\n${aprobados}/${CASOS.length} casos aprobados.`);
 console.log(
   `Turno completo: media ${media(tiempos)} ms, mediana ${ordenados[Math.floor(ordenados.length / 2)]} ms, máximo ${ordenados.at(-1)} ms.`
 );
-console.log(
-  `Recuperación: ${recuperaciones.filter((x) => x.modo === "semantico").length} semántica, ${recuperaciones.filter((x) => x.modo === "palabras").length} por palabras; media ${media(recuperaciones.map((x) => x.ms))} ms.`
-);
+console.log("El modo de recuperación (semántico o por palabras) de cada turno aparece en el log del servidor: [rag] modo.");
 process.exit(aprobados === CASOS.length ? 0 : 1);

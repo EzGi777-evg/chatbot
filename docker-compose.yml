@@ -1,0 +1,21 @@
+# Uso: docker compose up --build        (detener: docker compose down)
+services:
+  chatbot:
+    build: .
+    image: chatbot-demo:latest
+    ports:
+      - "3000:3000"
+    # Las variables se leen del archivo del equipo al crear el contenedor; nunca se copian a la imagen.
+    env_file:
+      - path: .env.local
+        required: true
+    restart: unless-stopped
+    # Endurecimiento: sin privilegios extra y sistema de archivos de solo lectura salvo la caché.
+    read_only: true
+    tmpfs:
+      - /app/.next/cache:uid=1000,gid=1000
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true

@@ -1,0 +1,18 @@
+# Secretos: ningún archivo de variables entra en el contexto de build ni en la imagen.
+.env*
+
+# Se generan dentro de la imagen.
+node_modules
+.next
+*.tsbuildinfo
+next-env.d.ts
+
+# No hacen falta para construir.
+.git
+.gitignore
+.claude
+Dockerfile
+.dockerignore
+docker-compose.yml
+*.md
+npm-debug.log*

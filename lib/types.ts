@@ -39,12 +39,10 @@ export type MensajeChat = {
   content: string;
   productos?: Producto[];
   simulada?: boolean;
-  solicitudId?: string;
 };
 
 export type RespuestaChat = {
   respuesta: string;
   productos: Producto[];
   simulada: boolean;
-  solicitudId?: string;
 };

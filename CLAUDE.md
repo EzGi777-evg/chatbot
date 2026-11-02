@@ -1,0 +1,66 @@
+@AGENTS.md
+
+# Chatbot de demostración (BERPA, no oficial)
+
+Prototipo independiente de un chatbot con IA para una tienda colombiana de distribución (BERPA).
+Next.js 16 (App Router), TypeScript, CSS Modules y la API Responses de OpenAI.
+NO es oficial de BERPA ni está conectado a sus sistemas.
+
+## Alcance del chatbot
+
+- SOLO responde sobre la tienda y su página: catálogo, categorías, precios y existencias de
+  demostración, domicilios, cobertura, compra mínima, contacto y preguntas frecuentes.
+- NO toma pedidos, no guarda solicitudes, no reserva inventario y no pide datos personales
+  (nombre, teléfono, dirección, cédula, tarjetas).
+- Si el cliente quiere comprar, lo orienta a la tienda en línea o al WhatsApp publicado (3023322766),
+  sin prometer confirmaciones, contacto ni entrega.
+- Si pregunta algo ajeno a la tienda, redirige con amabilidad y no responde.
+- Respuestas en texto plano, precios con punto de miles ($28.000), máximo 3 productos por respuesta;
+  si un producto tiene varias opciones, ofrece hasta 3 y pregunta cuál prefiere.
+
+## Reglas inamovibles
+
+- Nunca inventar datos comerciales (precios reales, inventario, promociones, políticas, medios de pago,
+  horarios). Productos, precios y existencias del catálogo son FICTICIOS y se presentan como demostración.
+  Lo verificado y lo ficticio no se mezclan.
+- No afirmar ni insinuar que la demo es oficial de BERPA o que está conectada a sus sistemas.
+  No usar su logo ni sus imágenes.
+- La clave de OpenAI vive solo en `.env.local`. NO leer, imprimir ni copiar `.env.local` ni ningún `.env*`.
+  Mantener `.env.example` con nombres de variables sin valores.
+- No instalar dependencias ni servicios nuevos sin justificarlos y pedir confirmación. No usar sudo sin preguntar.
+- Sin base de datos: lo que se guarde son archivos JSON locales.
+- Next.js 16: no agregar Tailwind ni reglas de Turbopack para CSS en `next.config.ts`
+  (ya rompieron CSS Modules una vez).
+- Antes de borrar archivos, mostrar la lista y esperar OK.
+- Trabajar en la rama actual, un commit por fase y detenerse al cerrar cada fase para aprobación.
+- No afirmar que algo funciona sin ejecutarlo: al cerrar cada fase mostrar los comandos corridos
+  (`npx tsc --noEmit`, `npm run lint`, pruebas) y sus resultados reales.
+
+## Estructura
+
+- `app/page.tsx`, `app/layout.tsx`: página de demostración (aviso de no afiliación, catálogo destacado, chat).
+- `app/api/chat/route.ts`: endpoint del chat. Valida mensajes, limita por IP, arma el contexto y ejecuta
+  el ciclo de herramientas con la API Responses. Sin clave configurada responde en modo simulado
+  con el buscador local. Si la respuesta trae productos y no dice "demostración", agrega la nota.
+- `app/api/catalogo/route.ts`: endpoint temporal de depuración del buscador (se elimina en la fase 4).
+- `components/`: `Chatbot` (panel de chat), `ChatProduct` (tarjetas en el chat), `Header`,
+  `CategoryExplorer`, `ProductCard`, cada uno con su `.module.css`.
+- `lib/config.ts`: límites, WhatsApp y compra mínima ($80.000, sobre productos, sin domicilio).
+- `lib/datos.ts`: carga de `data/*.json` y buscador por palabras (productos, preguntas, temas sin información).
+- `lib/prompt.ts`: instrucciones del sistema y contexto por turno (datos de la tienda con fuente y marca
+  verificado/sin verificar, temas sin información, productos relevantes).
+- `lib/herramientas.ts`: herramientas del modelo (`buscar_productos`, `consultar_existencias` con alternativas,
+  `cotizar_productos`, que solo informa el total y la compra mínima y no guarda nada).
+- `lib/openai.ts`: cliente y modelo (variables `OPENAI_API_KEY`, `OPENAI_MODEL`).
+- `lib/limite.ts`: límite de solicitudes en memoria por IP.
+- `lib/formato.ts`: precios en COP y nivel de existencias. `lib/types.ts`: tipos compartidos.
+- `data/productos.json`: 300 productos ficticios (`verificado: false`), generados por
+  `scripts/generar-productos.mjs`. `data/categorias.json`: categorías reales del sitio.
+  `data/preguntas.json`: preguntas frecuentes con fuente, fecha y marca `verificado`, y temas sin información.
+- `scripts/probar.sh`: envía mensajes sueltos a `/api/chat` (requiere `npm run dev`).
+
+## Comandos
+
+- `npm run dev`, `npm run build`, `npm run lint`, `npx tsc --noEmit`.
+
+Mantener esta sección de estructura al día al cerrar cada fase.

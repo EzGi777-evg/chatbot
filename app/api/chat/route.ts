@@ -5,8 +5,7 @@ import { permitirSolicitud } from "@/lib/limite";
 import { LIMITES, WHATSAPP } from "@/lib/config";
 import { claveConfigurada, obtenerCliente, obtenerModelo } from "@/lib/openai";
 import { INSTRUCCIONES, construirContexto, consultaParaProductos } from "@/lib/prompt";
-import { HERRAMIENTAS, ejecutarHerramienta, type ContextoHerramientas } from "@/lib/herramientas";
-import { conReservas, reservasActivas } from "@/lib/pedidos";
+import { HERRAMIENTAS, ejecutarHerramienta } from "@/lib/herramientas";
 import type { Producto, RespuestaChat } from "@/lib/types";
 
 const MAX_VUELTAS = 10;
@@ -51,7 +50,7 @@ function responderSimulado(consulta: string): RespuestaChat {
 
   if (temas.length > 0) {
     partes.push(
-      `No tengo información verificada sobre: ${temas.join(", ")}. Te recomiendo consultar los canales oficiales de BERPA (WhatsApp ${WHATSAPP}).`
+      `No tengo información verificada sobre: ${temas.join(", ")}. Te recomiendo consultarlo por el WhatsApp publicado de la tienda (${WHATSAPP}).`
     );
   }
 
@@ -61,7 +60,7 @@ function responderSimulado(consulta: string): RespuestaChat {
 
   if (partes.length === 0) {
     partes.push(
-      `No encontré información sobre eso. Puedes preguntarme por productos, compra mínima, cobertura o domicilios, o consultar los canales oficiales de BERPA (WhatsApp ${WHATSAPP}).`
+      `No encontré información sobre eso. Puedes preguntarme por productos, compra mínima, cobertura o domicilios, o consultar el WhatsApp publicado de la tienda (${WHATSAPP}).`
     );
   }
 
@@ -149,12 +148,6 @@ export async function POST(request: Request) {
   const conocidos = new Map<string, Producto>();
   relevantes.forEach((p) => conocidos.set(p.id, p));
 
-  const contexto: ContextoHerramientas = {
-    ip,
-    ultimoMensajeUsuario: ultimo.content,
-    historialAsistente: mensajes.filter((m) => m.role === "assistant").map((m) => m.content),
-  };
-
   const input: OpenAI.Responses.ResponseInputItem[] = mensajes.map((m) => ({
     role: m.role,
     content: m.content,
@@ -162,7 +155,7 @@ export async function POST(request: Request) {
 
   try {
     const cliente = obtenerCliente();
-    const instrucciones = `${INSTRUCCIONES}\n\n${construirContexto(conReservas(relevantes, await reservasActivas()))}`;
+    const instrucciones = `${INSTRUCCIONES}\n\n${construirContexto(relevantes)}`;
     let bruto = "";
 
     for (let vuelta = 0; vuelta < MAX_VUELTAS; vuelta++) {
@@ -194,7 +187,7 @@ export async function POST(request: Request) {
           arguments: llamada.arguments,
         });
 
-        const resultado = await ejecutarHerramienta(llamada.name, llamada.arguments, contexto);
+        const resultado = ejecutarHerramienta(llamada.name, llamada.arguments);
         resultado.productos.forEach((p) => conocidos.set(p.id, p));
 
         input.push({
@@ -205,30 +198,25 @@ export async function POST(request: Request) {
       }
     }
 
-    const { texto, productos: elegidos } = separarProductos(bruto, Array.from(conocidos.values()));
-    const productos = conReservas(elegidos, await reservasActivas());
+    const { texto, productos } = separarProductos(bruto, Array.from(conocidos.values()));
 
-    if (!texto && !contexto.solicitudId) {
+    if (!texto) {
       return NextResponse.json(
         { error: "El asistente no pudo generar una respuesta. Inténtalo de nuevo." },
         { status: 502 }
       );
     }
 
-    const avisoSolicitud = `Solicitud ${contexto.solicitudId} registrada. Las unidades quedan apartadas por unos minutos en el inventario de demostración y una persona de la tienda te contactará para confirmar disponibilidad, valor del domicilio y entrega.`;
-    const textoFinal = !contexto.solicitudId
-      ? texto
-      : texto.includes(contexto.solicitudId)
-        ? texto
-        : texto
-          ? `${texto}\n\nNúmero de solicitud: ${contexto.solicitudId}`
-          : avisoSolicitud;
+    // Los datos del catálogo son ficticios: si el modelo no lo aclaró, se agrega la nota.
+    const aviso =
+      productos.length > 0 && !/demostraci[oó]n/i.test(texto)
+        ? "\n\nProductos, precios y existencias de demostración (ficticios)."
+        : "";
 
     const salida: RespuestaChat = {
-      respuesta: textoFinal,
+      respuesta: texto + aviso,
       productos,
       simulada: false,
-      solicitudId: contexto.solicitudId,
     };
     return NextResponse.json(salida);
   } catch (e) {

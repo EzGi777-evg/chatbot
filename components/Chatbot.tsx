@@ -7,13 +7,13 @@ import type { MensajeChat, RespuestaChat } from "@/lib/types";
 import styles from "./Chatbot.module.css";
 
 const BIENVENIDA =
-  "¡Hola! Soy el asistente virtual de demostración. Puedo ayudarte a buscar productos, consultar existencias de ejemplo y dejar registrada una solicitud de pedido para que una persona de la tienda la confirme. Los productos, precios y existencias de esta demostración son ficticios.";
+  "¡Hola! Soy el asistente virtual de demostración. Puedo responder preguntas sobre la tienda: productos, precios y existencias de ejemplo, domicilios, cobertura, compra mínima y contacto. No tomo pedidos. Los productos, precios y existencias de esta demostración son ficticios.";
 
 const SUGERENCIAS = [
   "¿Cuál es la compra mínima?",
-  "Busco algo para freír",
-  "¿Hay 5 bolsas plásticas?",
-  "Quiero hacer un pedido",
+  "¿Hay aceite vegetal?",
+  "¿Cuánto cuesta el domicilio?",
+  "Busco algo para limpiar la cocina",
 ];
 
 export default function Chatbot() {
@@ -69,7 +69,6 @@ export default function Chatbot() {
           content: r.respuesta,
           productos: r.productos,
           simulada: r.simulada,
-          solicitudId: r.solicitudId,
         },
       ]);
     } catch (e) {
@@ -156,11 +155,6 @@ export default function Chatbot() {
                     {m.productos.map((p) => (
                       <ChatProduct key={p.id} producto={p} />
                     ))}
-                  </div>
-                )}
-                {m.solicitudId && (
-                  <div className={styles.solicitud}>
-                    ✅ Solicitud {m.solicitudId} registrada · pendiente de atención por una persona
                   </div>
                 )}
                 {m.simulada && <span className={styles.nota}>Respuesta simulada, sin IA</span>}

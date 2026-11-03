@@ -10,7 +10,10 @@
     "indexar": "node --env-file=.env.local scripts/indexar.mjs",
     "evaluar": "node scripts/evaluar.mjs",
     "probar:slugs": "node scripts/probar-slugs.mjs",
-    "verificar:rutas": "node scripts/verificar-rutas.mjs"
+    "verificar:rutas": "node scripts/verificar-rutas.mjs",
+    "probar:privacidad": "node scripts/probar-privacidad.mjs",
+    "seguridad": "node scripts/seguridad.mjs",
+    "test:humo": "node scripts/humo.mjs"
   },
   "dependencies": {
     "next": "16.4.3",

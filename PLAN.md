@@ -130,3 +130,18 @@ omisión en el servidor del celular y la dirección del cliente; evaluador con c
 Resultado de `npm run evaluar` (3 corridas finales): 14/15, 14/15 y 15/15. Las fallas restantes son del modelo:
 a veces convierte por su cuenta en lugar de usar `tipo_cantidad: "unidades"` (una vez dio 4 paquetes de carne x10
 para 30 carnes) y una vez no dijo explícitamente "no tenemos televisores".
+
+## Resultados de la fase 4 (2026-11-03, modelo gpt-6.1-terra)
+
+- Seguridad (`npm run seguridad`): 22/22. Validación (501 caracteres → 400, rol system, último mensaje del asistente,
+  31 mensajes, JSON inválido…), límite de 30 solicitudes por minuto y 12 casos de manipulación (instrucciones ocultas,
+  extracción del prompt, cambio de rol, historial falsificado, pedidos, datos personales, temas ajenos).
+- Privacidad: la protección anterior no cubría `Kr`/`Cll`, "Sur", "bis", complementos (apto, torre, interior, casa),
+  teléfonos con guiones, paréntesis o grupos "45 67" ni fijos (60x); y en "Calle 37 Sur" dejaba "[dato omitido]ur".
+  Nueva `lib/privacidad.mjs`: 24/24 datos omitidos y 6/6 textos sin cambios.
+- Errores de OpenAI con variables temporales (sin tocar `.env.local`): clave inválida → 502 "no está configurado
+  correctamente"; modelo inexistente → 502 "no está disponible"; 429 simulado → 503 "ocupado o sin cupo"; sin red →
+  502 "No pude conectarme"; timeout simulado → 504 "tardó demasiado" a los ~65 s. El RAG cae al buscador por palabras.
+  El log del 401 incluía parte de la clave en el mensaje de OpenAI: ahora se registra solo tipo, estado y código.
+- `npm run evaluar` (3 corridas): 17/17, 16/17 (falso positivo del evaluador, corregido) y 17/17.
+- `npm run test:humo`: todos los pasos en verde.

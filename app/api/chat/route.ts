@@ -3,10 +3,11 @@ import { NextResponse } from "next/server";
 import { buscarPreguntas, buscarProductos, detectarTemasSinInformacion, productosMencionados } from "@/lib/datos";
 import { permitirSolicitud } from "@/lib/limite";
 import { LIMITES, MAX_TARJETAS, WHATSAPP } from "@/lib/config";
-import { claveConfigurada, obtenerCliente, obtenerModelo } from "@/lib/openai";
+import { claveConfigurada, obtenerCliente, obtenerModelo, resumirError } from "@/lib/openai";
 import { INSTRUCCIONES, construirContexto, consultaDeBusqueda, partesDeBusqueda } from "@/lib/prompt";
 import { recuperar } from "@/lib/rag";
 import { HERRAMIENTAS, ejecutarHerramienta } from "@/lib/herramientas";
+import { omitirDatosPersonales } from "@/lib/privacidad.mjs";
 import type { Producto, RespuestaChat } from "@/lib/types";
 
 const MAX_VUELTAS = 10;
@@ -69,29 +70,6 @@ function responderSimulado(consulta: string): RespuestaChat {
 }
 
 // Quita Markdown que la interfaz no muestra y deja los precios con punto de miles ($28.000).
-const CELULAR = /(?:\+?57\s?)?3\d{2}\s?\d{3}\s?\d{4}/g;
-const DIRECCION =
-  /\b(?:calle|carrera|cra\.?|cr\.?|cl\.?|avenida|av\.?|diagonal|dg\.?|transversal|tv\.?)\s*\d+\s*[a-z]?(?:\s*(?:#|no\.?|n°)\s*\d+\s*[a-z]?(?:\s*-\s*\d+)?)?/gi;
-
-// Si el cliente escribió su celular o su dirección, el asistente no debe repetirlos (regla 5 del prompt).
-// Esta protección los reemplaza en la respuesta aunque el modelo los repita; el WhatsApp de la tienda no se toca.
-function omitirDatosPersonales(texto: string, mensajesUsuario: string[]): string {
-  const soloDigitos = (s: string) => s.replace(/\D/g, "");
-  const delCliente = mensajesUsuario.join("\n");
-  const celulares = new Set(
-    (delCliente.match(CELULAR) ?? []).map((c) => soloDigitos(c).slice(-10)).filter((c) => c !== WHATSAPP)
-  );
-  const direcciones = (delCliente.match(DIRECCION) ?? []).map((d) => d.toLowerCase().replace(/\s+/g, " ").trim());
-
-  let salida = texto.replace(CELULAR, (c) => (celulares.has(soloDigitos(c).slice(-10)) ? "[dato omitido]" : c));
-  salida = salida.replace(DIRECCION, (d) =>
-    direcciones.some((x) => d.toLowerCase().replace(/\s+/g, " ").trim().startsWith(x.split(" ").slice(0, 2).join(" ")))
-      ? "[dato omitido]"
-      : d
-  );
-  return salida;
-}
-
 function limpiarTexto(texto: string): string {
   return texto
     .replace(/\*\*/g, "")
@@ -233,7 +211,8 @@ export async function POST(request: Request) {
 
     const separado = separarProductos(bruto, Array.from(conocidos.values()));
     const productos = separado.productos;
-    const texto = omitirDatosPersonales(separado.texto, usuarios);
+    // Si el cliente escribió su teléfono o su dirección, el asistente no debe repetirlos (regla 5 del prompt).
+    const texto = omitirDatosPersonales(separado.texto, usuarios, WHATSAPP);
 
     if (!texto) {
       return NextResponse.json(
@@ -256,10 +235,7 @@ export async function POST(request: Request) {
     return NextResponse.json(salida);
   } catch (e) {
     const { status, mensaje } = describirError(e);
-    console.error(
-      "[chat] Error de OpenAI:",
-      e instanceof OpenAI.APIError ? `${e.status} ${e.message}` : e instanceof Error ? e.message : e
-    );
+    console.error("[chat] Error de OpenAI:", resumirError(e));
     return NextResponse.json({ error: mensaje }, { status });
   }
 }

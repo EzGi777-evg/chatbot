@@ -2,7 +2,7 @@ import { readFile, stat } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import path from "node:path";
 import { buscarPorNombre, buscarPreguntas, buscarProductos, preguntas, productos } from "./datos";
-import { obtenerCliente } from "./openai";
+import { obtenerCliente, resumirError } from "./openai";
 import type { Pregunta, Producto } from "./types";
 
 const ARCHIVO = path.join(process.cwd(), "data", "indice-embeddings.json");
@@ -136,7 +136,7 @@ export async function buscarSemantico(consulta: string, limiteProductos = 5, lim
     };
   } catch (e) {
     pausaHasta = Date.now() + PAUSA_TRAS_FALLA_MS;
-    avisar(`falló la API de embeddings (${e instanceof Error ? e.message : e}); pauso la búsqueda semántica 60 s.`);
+    avisar(`falló la API de embeddings (${resumirError(e)}); pauso la búsqueda semántica 60 s.`);
     return null;
   }
 }

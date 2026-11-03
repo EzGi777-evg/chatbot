@@ -47,12 +47,17 @@ NO es oficial de BERPA ni está conectado a sus sistemas.
   (`components/Migas.tsx`) y `generateMetadata`. La categoría usa su `id`; la subcategoría, `aSlug(nombre)`, y se
   identifica siempre por el par categoría + subcategoría ("Guantes, gorros y tapabocas" está en dos categorías).
 - `lib/slug.mjs`: `aSlug`, única función de slug (JavaScript para que la usen también los scripts).
+- `lib/privacidad.mjs`: `omitirDatosPersonales` (celulares y fijos de 10 dígitos con espacios, guiones, puntos o
+  paréntesis; direcciones con abreviaturas, letra, bis, sur y complementos como apto o torre). Solo omite lo que el
+  cliente escribió y nunca el WhatsApp de la tienda. JavaScript para probarla con `scripts/probar-privacidad.mjs`.
 - `app/api/salud/route.ts`: healthcheck del contenedor; devuelve solo `{"ok": true}`.
 - `app/api/chat/route.ts`: endpoint del chat. Valida mensajes, limita por IP, arma el contexto y ejecuta
   el ciclo de herramientas con la API Responses. Sin clave configurada responde en modo simulado
   con el buscador local. Si la respuesta trae productos y no dice "demostración", agrega la nota. Pasa al modelo los
   productos que el asistente ya nombró en turnos anteriores (el historial solo es texto) y reemplaza por
-  "[dato omitido]" el celular o la dirección que el cliente haya escrito si el modelo los repite. Tarjetas: los
+  "[dato omitido]" el teléfono o la dirección que el cliente haya escrito si el modelo los repite (`lib/privacidad.mjs`).
+  Los errores de OpenAI se registran con `resumirError` (tipo, estado y código; nunca el mensaje, que en el 401 trae
+  parte de la clave). Tarjetas: los
   productos de la línea `PRODUCTOS:` más los que el texto nombra exactamente, en orden de aparición, hasta 8
   (`MAX_TARJETAS`); el prompt limita a 3 solo las sugerencias no pedidas y las variantes de un mismo producto.
 - `components/`: `Chatbot` (panel de chat), `ChatProduct` (tarjetas en el chat), `Header`, `CategoryExplorer`,
@@ -76,13 +81,17 @@ NO es oficial de BERPA ni está conectado a sus sistemas.
   cantidades ambiguas: si el último mensaje del cliente no dice "paquete"/"unidad" ni la presentación (x12) y el
   modelo usa ese número como paquetes, o es una cantidad suelta ("quiero 2", "un quesito"), la herramienta
   devuelve un error que pide preguntar. `buscar_productos` cae a `buscarPorNombre` si el semántico no encuentra nada.
-- `lib/openai.ts`: cliente y modelo (variables `OPENAI_API_KEY`, `OPENAI_MODEL`).
+- `lib/openai.ts`: cliente, modelo (variables `OPENAI_API_KEY`, `OPENAI_MODEL`) y `resumirError` para los logs.
 - `lib/limite.ts`: límite de solicitudes en memoria por IP.
 - `lib/formato.ts`: precios en COP y nivel de existencias. `lib/types.ts`: tipos compartidos.
 - `data/productos.json`: 300 productos ficticios (`verificado: false`), generados por
   `scripts/generar-productos.mjs`. `data/categorias.json`: categorías reales del sitio.
   `data/preguntas.json`: preguntas frecuentes con fuente, fecha y marca `verificado`, y temas sin información.
-- `scripts/probar.sh`: envía mensajes sueltos a `/api/chat` (requiere `npm run dev`).
+- `scripts/probar.sh`: envía mensajes sueltos a `/api/chat` (requiere `npm run dev`); código 1 si alguno falla.
+- `scripts/probar-privacidad.mjs` (`npm run probar:privacidad`): 24 datos que se omiten y 6 textos que no se tocan.
+- `scripts/seguridad.mjs` (`npm run seguridad`, con el servidor en marcha): validación (500/501 caracteres, roles,
+  historial), límite de 30 solicitudes por minuto y 12 casos de manipulación del modelo.
+- `scripts/humo.mjs` (`npm run test:humo`): privacidad, slugs, probar.sh, rutas, seguridad y evaluar, con resumen.
 - `scripts/indexar.mjs` (`npm run indexar`): genera el índice con `OPENAI_EMBEDDING_MODEL` (512 dimensiones). Embebe solo
   nombre + subcategoría + categoría + frase de uso; la marca ficticio/verificado va como metadato. Repetir tras cambiar
   `data/productos.json` o `data/preguntas.json`.
@@ -104,6 +113,7 @@ NO es oficial de BERPA ni está conectado a sus sistemas.
 ## Comandos
 
 - `npm run dev`, `npm run build`, `npm run lint`, `npx next typegen && npx tsc --noEmit` (los tipos `PageProps`
-  se generan con typegen), `npm run indexar`, `npm run evaluar`, `npm run probar:slugs`, `npm run verificar:rutas`.
+  se generan con typegen), `npm run indexar`, `npm run evaluar`, `npm run probar:slugs`, `npm run verificar:rutas`,
+  `npm run probar:privacidad`, `npm run seguridad`, `npm run test:humo`.
 
 Mantener esta sección de estructura al día al cerrar cada fase.

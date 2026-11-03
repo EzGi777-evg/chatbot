@@ -173,7 +173,7 @@ CASOS.push(
     // Turno 3 ("¿si da?"): confirma que alcanza y repite el total y si cumple el mínimo.
     porTurno: {
       2: TOTAL_HAMBURGUESAS,
-      3: [menciona(/alcanza|\bs[ií] (da|te da|alcanza)\b|cubre/i, "no confirma que alcanza"), ...TOTAL_HAMBURGUESAS],
+      3: [menciona(/alcanza|(?<![a-záéíóúñ])s[ií](?![a-záéíóúñ])[^.\n]{0,40}\b(da|sirve)\b|cubre/i, "no confirma que alcanza"), ...TOTAL_HAMBURGUESAS],
     },
     enCadaTurno: [noMenciona(/\b0 (unidades|paquetes)\b/i, "dice que hay 0 unidades o paquetes")],
     esperado: [],

@@ -170,7 +170,11 @@ CASOS.push(
   {
     nombre: "Varios turnos: 30 hamburguesas (unidades y paquetes)",
     mensajes: HAMBURGUESAS,
-    porTurno: { 2: TOTAL_HAMBURGUESAS, 3: TOTAL_HAMBURGUESAS },
+    // Turno 3 ("¿si da?"): confirma que alcanza y repite el total y si cumple el mínimo.
+    porTurno: {
+      2: TOTAL_HAMBURGUESAS,
+      3: [menciona(/alcanza|\bs[ií] (da|te da|alcanza)\b|cubre/i, "no confirma que alcanza"), ...TOTAL_HAMBURGUESAS],
+    },
     enCadaTurno: [noMenciona(/\b0 (unidades|paquetes)\b/i, "dice que hay 0 unidades o paquetes")],
     esperado: [],
   },
@@ -196,6 +200,20 @@ CASOS.push(
 // El total $108.500 = 3 pan x12 + 3 carne x10 + 1 salsa 1 kg + 1 papa ripio, por eso el turno 2 da cantidades.
 const CUATRO_PRODUCTOS = ["pan para hamburguesa", "carne de hamburguesa", "papa ripio", "salsa de tomate"];
 const tieneTarjetasDe = (tipos) => (ps) => tipos.every((t) => ps.some((p) => p.nombre.toLowerCase().includes(t)));
+const NO_HAY_RIPIO = /no (he )?(encontr|tengo informaci)[^.\n]*ripio|no (hay|tenemos|tengo|manejamos)[^.\n]*ripio/i;
+
+// "suma también el ripio" admite dos respuestas: el total $108.500 diciendo que asumió 1 paquete, o una pregunta
+// por la cantidad. Como cifras, en la pregunta solo caben el total sin ripio ($100.500) y el precio del ripio ($8.000).
+function sumaRipio(r) {
+  const t = r.respuesta;
+  if (/\$\s?108\.500\b/.test(t)) {
+    return /\b(1|un) paquete/i.test(t) || "da $108.500 sin decir que asumió 1 paquete de ripio";
+  }
+  const pregunta = /\?/.test(t) && /cu[aá]nt[oa]s?[^?]*(paquete|ripio)|(paquete|ripio)[^?]*cu[aá]nt/i.test(t);
+  if (!pregunta) return "ni da el total $108.500 ni pregunta cuántos paquetes de ripio";
+  const otras = (t.match(/\$\s?[\d.]+/g) ?? []).map((x) => x.replace(/[$\s]/g, "")).filter((x) => !["100.500", "8.000"].includes(x));
+  return otras.length === 0 || `pregunta, pero da cifras distintas: ${otras.join(", ")}`;
+}
 CASOS.push(
   {
     nombre: "Varios turnos: cuatro productos con ripio",
@@ -207,12 +225,13 @@ CASOS.push(
     porTurno: {
       1: [
         menciona(/papa ripio/i, "no encuentra el ripio en el primer turno"),
-        noMenciona(/no (he )?(encontr|tengo informaci)[^.\n]*ripio/i, "dice que no hay ripio"),
+        noMenciona(NO_HAY_RIPIO, "dice que no hay ripio"),
         tarjetas(tieneTarjetasDe(CUATRO_PRODUCTOS), "no hay una tarjeta por cada uno de los 4 productos pedidos"),
       ],
     },
     esperado: [
-      menciona(/\$\s?108\.500\b/, "el total final no es $108.500"),
+      sumaRipio,
+      noMenciona(NO_HAY_RIPIO, "dice que no hay ripio"),
       tarjetas(tieneTarjetasDe(["papa ripio"]), "no muestra la tarjeta del ripio"),
     ],
   },

@@ -2,7 +2,7 @@ import OpenAI from "openai";
 import { NextResponse } from "next/server";
 import { buscarPreguntas, buscarProductos, detectarTemasSinInformacion, productosMencionados } from "@/lib/datos";
 import { permitirSolicitud } from "@/lib/limite";
-import { LIMITES, WHATSAPP } from "@/lib/config";
+import { LIMITES, MAX_TARJETAS, WHATSAPP } from "@/lib/config";
 import { claveConfigurada, obtenerCliente, obtenerModelo } from "@/lib/openai";
 import { INSTRUCCIONES, construirContexto, consultaDeBusqueda, partesDeBusqueda } from "@/lib/prompt";
 import { recuperar } from "@/lib/rag";
@@ -101,25 +101,26 @@ function limpiarTexto(texto: string): string {
     .trim();
 }
 
-// Quita la línea "PRODUCTOS: ..." y devuelve solo productos conocidos. Si el modelo la omite,
-// detecta los nombres de producto escritos en el texto.
+// Quita la línea "PRODUCTOS: ..." y arma las tarjetas: los productos de esa línea más los del catálogo que el
+// texto nombra exactamente, en el orden en que aparecen en el texto, para que texto y tarjetas coincidan.
 function separarProductos(bruto: string, permitidos: Producto[]) {
   const linea = bruto.match(/PRODUCTOS:[ \t]*([^\n]*)/);
   const ids = linea ? linea[1].split(/[\s,;]+/).filter(Boolean) : [];
-  let elegidos = ids
+  const deLaLinea = ids
     .map((id) => permitidos.find((p) => p.id === id))
     .filter((p): p is Producto => Boolean(p));
 
   const texto = limpiarTexto(bruto.replace(/[ \t]*PRODUCTOS:[^\n]*/g, ""));
+  const minusculas = texto.toLowerCase();
+  const posicion = (p: Producto) => {
+    const i = minusculas.indexOf(p.nombre.replace(/^\[Demo\]\s*/, "").toLowerCase());
+    return i === -1 ? Number.MAX_SAFE_INTEGER : i;
+  };
 
-  if (elegidos.length === 0) {
-    const minusculas = texto.toLowerCase();
-    elegidos = permitidos.filter((p) =>
-      minusculas.includes(p.nombre.replace("[Demo] ", "").toLowerCase())
-    );
-  }
-
-  const unicos = elegidos.filter((p, i, arr) => arr.indexOf(p) === i).slice(0, 3);
+  const unicos = [...productosMencionados(texto), ...deLaLinea]
+    .filter((p, i, arr) => arr.findIndex((x) => x.id === p.id) === i)
+    .sort((a, b) => posicion(a) - posicion(b))
+    .slice(0, MAX_TARJETAS);
   return { texto, productos: unicos };
 }
 
@@ -219,7 +220,7 @@ export async function POST(request: Request) {
           arguments: llamada.arguments,
         });
 
-        const resultado = await ejecutarHerramienta(llamada.name, llamada.arguments);
+        const resultado = await ejecutarHerramienta(llamada.name, llamada.arguments, ultimo.content);
         resultado.productos.forEach((p) => conocidos.set(p.id, p));
 
         input.push({

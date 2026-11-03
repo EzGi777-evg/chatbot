@@ -120,6 +120,21 @@ export function buscarProductos(consulta: string, limite = 5): Producto[] {
     .map((x) => x.p);
 }
 
+// Búsqueda por palabras solo en el nombre del producto. Es el respaldo cuando la búsqueda semántica no encuentra
+// nada para una palabra que el modelo de embeddings no conoce (por ejemplo "ripio" → "Papa ripio 500 g"):
+// al mirar solo el nombre no trae el ruido de las descripciones.
+export function buscarPorNombre(consulta: string, limite = 3): Producto[] {
+  const q = new Set(tokens(consulta));
+  if (q.size === 0) return [];
+
+  return productos
+    .map((p) => ({ p, puntaje: tokens(p.nombre).filter((x) => coincide(q, x)).length }))
+    .filter((x) => x.puntaje > 0)
+    .sort((a, b) => b.puntaje - a.puntaje)
+    .slice(0, limite)
+    .map((x) => x.p);
+}
+
 function puntajeFrases(consulta: Set<string>, frases: string[]): number {
   let puntaje = 0;
   for (const frase of frases) {

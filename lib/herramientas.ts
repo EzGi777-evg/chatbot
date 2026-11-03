@@ -1,5 +1,5 @@
 import type OpenAI from "openai";
-import { buscarProductos, categorias, productos } from "./datos";
+import { buscarPorNombre, buscarProductos, categorias, normalizar, productos } from "./datos";
 import { buscarSemantico } from "./rag";
 import { MAX_CANTIDAD, MAX_ITEMS_COTIZACION, MAX_UNIDADES, MINIMO_COMPRA } from "./config";
 import type { Producto } from "./types";
@@ -142,6 +142,31 @@ function convertir(p: Producto, cantidad: number, tipo: TipoCantidad): Conversio
   };
 }
 
+const NUMEROS_EN_LETRAS: Record<string, number> = {
+  un: 1, una: 1, uno: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10,
+};
+
+// Protección contra cantidades ambiguas (el prompt sola no basta): si el último mensaje del cliente no dice
+// "paquete" ni "unidad" ni nombra la presentación (x12) y el modelo usa ese número como paquetes ("quiero 2" → 2
+// paquetes, "30 hamburguesas" → 30 paquetes), o el mensaje es una cantidad suelta ("quiero 2", "un quesito"),
+// la herramienta no elige: pide preguntarle al cliente.
+function cantidadAmbigua(p: Producto, cantidad: number, tipo: TipoCantidad, mensaje: string): string | null {
+  const porPaquete = unidadesPorPaquete(p);
+  if (porPaquete === null || porPaquete <= 1 || !mensaje) return null;
+
+  const texto = normalizar(mensaje);
+  if (/\b(paquete|paquetes|paq|unidad|unidades|und)\b/.test(texto)) return null;
+  if (new RegExp(`\\bx\\s?${porPaquete}\\b`).test(texto)) return null;
+
+  const palabras = texto.split(" ");
+  const numeros = new Set(palabras.map((w) => (/^\d+$/.test(w) ? Number(w) : NUMEROS_EN_LETRAS[w])).filter(Boolean));
+  const suelta = /^(quiero|dame|ponme|son|serian|necesito|mejor|solo)?\s*(\d+|un|una|uno|dos|tres|cuatro|cinco)(\s+\S+)?$/.test(texto);
+  if (!(suelta || (tipo === "paquetes" && numeros.has(cantidad)))) return null;
+
+  const paquetes = Math.ceil(cantidad / porPaquete);
+  return `Cantidad ambigua: el cliente escribió "${mensaje.slice(0, 80)}" sin decir si son paquetes o unidades, y "${p.nombre}" viene en paquete de ${porPaquete}. No cotices todavía: pregúntale si son paquetes o unidades (${cantidad} unidades = ${paquetes} ${paquetes === 1 ? "paquete" : "paquetes"}; ${cantidad} paquetes = ${cantidad * porPaquete} unidades).`;
+}
+
 function textoPedido(cantidad: number, tipo: TipoCantidad, c: Conversion): string {
   return tipo === "unidades"
     ? `pide ${cantidad} unidades (${c.paquetes} paquetes)`
@@ -155,13 +180,15 @@ async function buscar(args: unknown): Promise<Resultado> {
     return fallo("La consulta debe ser un texto de hasta 200 caracteres.");
   }
 
-  // Primero por significado; si no hay índice o falla la API, por palabras.
+  // Primero por significado; si no hay resultados (o no hay índice, o falla la API), por palabras en el nombre
+  // y, por último, en nombre, subcategoría y descripción.
   const semantico = await buscarSemantico(consulta, 6, 0);
-  const encontrados = semantico
-    ? semantico.productos
-        .map((x) => productos.find((p) => p.id === x.f.id))
-        .filter((p): p is Producto => Boolean(p))
-    : buscarProductos(consulta, 6);
+  const porSignificado = (semantico?.productos ?? [])
+    .map((x) => productos.find((p) => p.id === x.f.id))
+    .filter((p): p is Producto => Boolean(p));
+  const porNombre = porSignificado.length > 0 ? [] : buscarPorNombre(consulta, 6);
+  const encontrados =
+    porSignificado.length > 0 ? porSignificado : porNombre.length > 0 ? porNombre : buscarProductos(consulta, 6);
   if (encontrados.length === 0) {
     return {
       salida: {
@@ -184,7 +211,7 @@ async function buscar(args: unknown): Promise<Resultado> {
   };
 }
 
-function existencias(args: unknown): Resultado {
+function existencias(args: unknown, ultimoMensaje: string): Resultado {
   const a = (typeof args === "object" && args !== null ? args : {}) as {
     producto_id?: unknown;
     cantidad?: unknown;
@@ -199,6 +226,9 @@ function existencias(args: unknown): Resultado {
   const { cantidad, tipo_cantidad: tipo } = a;
   const producto = productos.find((p) => p.id === a.producto_id);
   if (!producto) return fallo("Producto no encontrado. Usa un id devuelto por buscar_productos.");
+
+  const ambigua = cantidadAmbigua(producto, cantidad, tipo, ultimoMensaje);
+  if (ambigua) return fallo(ambigua);
 
   const conversion = convertir(producto, cantidad, tipo);
   if ("error" in conversion) return fallo(conversion.error);
@@ -243,7 +273,10 @@ function existencias(args: unknown): Resultado {
   };
 }
 
-function analizarItems(crudos: unknown): { ok: true; lineas: LineaCotizacion[] } | { ok: false; error: string } {
+function analizarItems(
+  crudos: unknown,
+  ultimoMensaje: string
+): { ok: true; lineas: LineaCotizacion[] } | { ok: false; error: string } {
   if (!Array.isArray(crudos) || crudos.length === 0 || crudos.length > MAX_ITEMS_COTIZACION) {
     return { ok: false, error: `La lista de productos debe tener entre 1 y ${MAX_ITEMS_COTIZACION} elementos.` };
   }
@@ -273,6 +306,9 @@ function analizarItems(crudos: unknown): { ok: true; lineas: LineaCotizacion[] }
     }
 
     // Si el mismo producto viene varias veces, se suman los paquetes de cada pedido.
+    const ambigua = pedido.map((x) => cantidadAmbigua(producto, x.cantidad, x.tipo, ultimoMensaje)).find(Boolean);
+    if (ambigua) return { id, producto, pedido, conversion: null, problema: ambigua };
+
     const partes = pedido.map((x) => convertir(producto, x.cantidad, x.tipo));
     const error = partes.find((x): x is { error: string } => "error" in x);
     if (error) return { id, producto, pedido, conversion: null, problema: error.error };
@@ -299,10 +335,10 @@ function analizarItems(crudos: unknown): { ok: true; lineas: LineaCotizacion[] }
   return { ok: true, lineas };
 }
 
-function cotizar(args: unknown): Resultado {
+function cotizar(args: unknown, ultimoMensaje: string): Resultado {
   const items =
     typeof args === "object" && args !== null ? (args as { items?: unknown }).items : undefined;
-  const analisis = analizarItems(items);
+  const analisis = analizarItems(items, ultimoMensaje);
   if (!analisis.ok) return fallo(analisis.error);
 
   const { lineas } = analisis;
@@ -345,7 +381,8 @@ function cotizar(args: unknown): Resultado {
   };
 }
 
-export async function ejecutarHerramienta(nombre: string, argumentos: string): Promise<Resultado> {
+// ultimoMensaje: el último mensaje del cliente, para detectar cantidades ambiguas.
+export async function ejecutarHerramienta(nombre: string, argumentos: string, ultimoMensaje = ""): Promise<Resultado> {
   let args: unknown;
   try {
     args = JSON.parse(argumentos);
@@ -358,9 +395,9 @@ export async function ejecutarHerramienta(nombre: string, argumentos: string): P
       case "buscar_productos":
         return await buscar(args);
       case "consultar_existencias":
-        return existencias(args);
+        return existencias(args, ultimoMensaje);
       case "cotizar_productos":
-        return cotizar(args);
+        return cotizar(args, ultimoMensaje);
       default:
         return fallo("Herramienta desconocida.");
     }

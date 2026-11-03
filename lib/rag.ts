@@ -1,7 +1,7 @@
 import { readFile, stat } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import path from "node:path";
-import { buscarPreguntas, buscarProductos, preguntas, productos } from "./datos";
+import { buscarPorNombre, buscarPreguntas, buscarProductos, preguntas, productos } from "./datos";
 import { obtenerCliente } from "./openai";
 import type { Pregunta, Producto } from "./types";
 
@@ -165,8 +165,14 @@ export async function recuperar(
     };
   }
 
-  // Se intercalan los mejores de cada parte para que ningún producto pedido quede fuera.
-  const listas = [...porParte, general].map((x) => x?.productos.map((y) => y.f.id) ?? []);
+  // Se intercalan los mejores de cada parte para que ningún producto pedido quede fuera. Si una parte no tiene
+  // resultados semánticos (palabras que el modelo de embeddings no conoce, como "ripio"), se busca por nombre.
+  const listas = [
+    ...porParte.map((x, i) =>
+      x && x.productos.length > 0 ? x.productos.map((y) => y.f.id) : buscarPorNombre(partes[i], 3).map((p) => p.id)
+    ),
+    general.productos.map((y) => y.f.id),
+  ];
   const ids: string[] = [];
   for (let i = 0; ids.length < limiteProductos && listas.some((l) => i < l.length); i++) {
     for (const l of listas) if (l[i] && !ids.includes(l[i]) && ids.length < limiteProductos) ids.push(l[i]);

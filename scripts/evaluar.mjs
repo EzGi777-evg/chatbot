@@ -19,10 +19,36 @@ function productosNombrados(texto) {
   return nombrados;
 }
 
-// Productos que ofrece el asistente: los nombrados en la respuesta que el cliente no nombró en su mensaje.
-function productosOfrecidos(r) {
-  const delCliente = productosNombrados(r.mensajeCliente);
-  return [...productosNombrados(r.respuesta)].filter((n) => !delCliente.has(n)).length;
+const sinTildes = (t) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+// Producto base sin la presentación: "salsa de tomate 1 kg" y "salsa de tomate 3 kg" son variantes del mismo.
+const base = (nombre) =>
+  nombre.replace(/\s+(x\s?\d+.*|\d+([.,]\d+)?\s*(kg|g|l|ml|oz)\b.*)$/i, "").trim();
+
+// ¿El cliente pidió este producto? Alguna palabra del nombre base (4+ letras) aparece en lo que escribió.
+function pedidoPorCliente(nombreBase, textoCliente) {
+  const delCliente = sinTildes(textoCliente).split(/[^a-z0-9]+/).filter((w) => w.length >= 4);
+  return sinTildes(nombreBase)
+    .split(/[^a-z0-9]+/)
+    .filter((w) => w.length >= 4 && !["para", "con"].includes(w))
+    .some((w) => delCliente.some((c) => c.slice(0, 5) === w.slice(0, 5)));
+}
+
+// Regla de cantidad: los productos pedidos no cuentan; las sugerencias no pedidas, como máximo 3, y como
+// máximo 3 variantes de un mismo producto.
+function excesoDeProductos(r) {
+  const porBase = new Map();
+  for (const n of productosNombrados(r.respuesta)) porBase.set(base(n), (porBase.get(base(n)) ?? 0) + 1);
+  const muchasVariantes = [...porBase].filter(([, n]) => n > 3).map(([b]) => b);
+  if (muchasVariantes.length > 0) return `más de 3 variantes de: ${muchasVariantes.join(", ")}`;
+  const noPedidos = [...porBase.keys()].filter((b) => !pedidoPorCliente(b, r.textoCliente));
+  return noPedidos.length > 3 ? `sugiere más de 3 productos que el cliente no pidió: ${noPedidos.join(", ")}` : null;
+}
+
+// Cada producto del catálogo que el texto nombra debe tener su tarjeta.
+function sinTarjeta(r) {
+  const conTarjeta = new Set(r.productos.map((p) => p.nombre.replace(/^\[Demo\]\s*/, "").toLowerCase()));
+  return [...productosNombrados(r.respuesta)].filter((n) => !conTarjeta.has(n));
 }
 
 const URL_CHAT = `${process.env.EVALUAR_URL ?? "http://localhost:3000"}/api/chat`;
@@ -166,11 +192,50 @@ CASOS.push(
   }
 );
 
+// Conversación A: cuatro productos pedidos a la vez, uno de ellos ("ripio") que la búsqueda semántica no encuentra.
+// El total $108.500 = 3 pan x12 + 3 carne x10 + 1 salsa 1 kg + 1 papa ripio, por eso el turno 2 da cantidades.
+const CUATRO_PRODUCTOS = ["pan para hamburguesa", "carne de hamburguesa", "papa ripio", "salsa de tomate"];
+const tieneTarjetasDe = (tipos) => (ps) => tipos.every((t) => ps.some((p) => p.nombre.toLowerCase().includes(t)));
+CASOS.push(
+  {
+    nombre: "Varios turnos: cuatro productos con ripio",
+    mensajes: [
+      "quiero pan de hamburguesa, carne de hamburguesa, ripio y salsa de tomate",
+      "es para 30 hamburguesas, con la carne x10 y una salsa de tomate de 1 kg; cotiza sin el ripio por ahora",
+      "suma también el ripio",
+    ],
+    porTurno: {
+      1: [
+        menciona(/papa ripio/i, "no encuentra el ripio en el primer turno"),
+        noMenciona(/no (he )?(encontr|tengo informaci)[^.\n]*ripio/i, "dice que no hay ripio"),
+        tarjetas(tieneTarjetasDe(CUATRO_PRODUCTOS), "no hay una tarjeta por cada uno de los 4 productos pedidos"),
+      ],
+    },
+    esperado: [
+      menciona(/\$\s?108\.500\b/, "el total final no es $108.500"),
+      tarjetas(tieneTarjetasDe(["papa ripio"]), "no muestra la tarjeta del ripio"),
+    ],
+  },
+  {
+    nombre: "Varios turnos: cantidad ambigua de quesitos",
+    mensajes: ["queso", "un quesito", "quiero 2"],
+    porTurno: {
+      2: [menciona(/(paquete|presentaci[oó]n)[^.\n]*12|x12|12 (unidades|quesitos)/i, "no dice que viene en paquete de 12")],
+    },
+    esperado: [
+      noMenciona(/\$\s?26\.000/, "cotiza 2 paquetes ($26.000) sin preguntar"),
+      menciona(/\b(un|1) paquete/i, "no explica que 2 quesitos caben en 1 paquete"),
+      menciona(/\?/, "no hace la pregunta"),
+    ],
+  }
+);
+
 // Comprobaciones que aplican a todas las respuestas.
 const GENERALES = [
   (r) => !/\*\*|^#+\s/m.test(r.respuesta) || "usa Markdown",
-  (r) => r.productos.length <= 3 || "muestra más de 3 tarjetas",
-  (r) => productosOfrecidos(r) <= 3 || "ofrece más de 3 productos distintos en el texto",
+  (r) => r.productos.length <= 8 || "muestra más de 8 tarjetas",
+  (r) => excesoDeProductos(r) ?? true,
+  (r) => sinTarjeta(r).length === 0 || `nombra productos sin tarjeta: ${sinTarjeta(r).join(", ")}`,
   (r) => r.productos.length === 0 || /demostraci[oó]n/i.test(r.respuesta) || "no aclara que es de demostración",
   (r) => !/\$\s?0(?![\d.])/.test(r.respuesta) || "menciona $0",
 ];
@@ -207,7 +272,10 @@ for (const caso of CASOS) {
     historial.push({ role: "user", content: turno });
     let r;
     try {
-      r = { ...(await preguntar(historial)), mensajeCliente: turno };
+      r = {
+        ...(await preguntar(historial)),
+        textoCliente: historial.filter((m) => m.role === "user").map((m) => m.content).join("\n"),
+      };
     } catch {
       console.error(`No pude conectarme con ${URL_CHAT}. ¿Está corriendo npm run dev?`);
       process.exit(1);

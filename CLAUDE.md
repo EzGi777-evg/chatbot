@@ -52,7 +52,9 @@ NO es oficial de BERPA ni está conectado a sus sistemas.
   el ciclo de herramientas con la API Responses. Sin clave configurada responde en modo simulado
   con el buscador local. Si la respuesta trae productos y no dice "demostración", agrega la nota. Pasa al modelo los
   productos que el asistente ya nombró en turnos anteriores (el historial solo es texto) y reemplaza por
-  "[dato omitido]" el celular o la dirección que el cliente haya escrito si el modelo los repite.
+  "[dato omitido]" el celular o la dirección que el cliente haya escrito si el modelo los repite. Tarjetas: los
+  productos de la línea `PRODUCTOS:` más los que el texto nombra exactamente, en orden de aparición, hasta 8
+  (`MAX_TARJETAS`); el prompt limita a 3 solo las sugerencias no pedidas y las variantes de un mismo producto.
 - `components/`: `Chatbot` (panel de chat), `ChatProduct` (tarjetas en el chat), `Header`, `CategoryExplorer`,
   `ProductCard` (precio, existencias con `describirExistencias`, agotados atenuados), `Migas`, cada uno con su
   `.module.css`.
@@ -60,7 +62,8 @@ NO es oficial de BERPA ni está conectado a sus sistemas.
 - `lib/datos.ts`: carga de `data/*.json`, rutas del catálogo (`subcategorias`, `rutaCategoria`, `rutaSubcategoria`,
   `subcategoriaPorSlugs`, `productosDeSubcategoria`…) y buscador por palabras. Las páginas no leen los JSON.
 - `lib/rag.ts`: búsqueda semántica sobre `data/indice-embeddings.json` por partes del mensaje (cada producto pedido
-  y las partes del mensaje anterior del cliente, en paralelo e intercaladas; coseno en memoria, caché de consultas,
+  y las partes del mensaje anterior del cliente, en paralelo e intercaladas; una parte sin resultados semánticos
+  se busca por nombre con `buscarPorNombre`, p. ej. "ripio"; coseno en memoria, caché de consultas,
   pausa de 60 s tras una falla de la API). Si no hay índice válido o falla la API, usa el buscador por palabras.
   El índice se invalida solo si cambian productos o preguntas (hash) o el modelo.
 - `lib/prompt.ts`: instrucciones del sistema y contexto por turno: solo los fragmentos recuperados, con su fuente y
@@ -69,7 +72,10 @@ NO es oficial de BERPA ni está conectado a sus sistemas.
   `cotizar_productos`, que solo informa y no guarda nada). Existencias y precios son por paquete;
   `unidades_por_paquete` sale del nombre (`xN`). `tipo_cantidad` "unidades" se convierte en el servidor con
   ceil(cantidad / unidades_por_paquete). Si una línea tiene problema, `total_productos_cop` y `cumple_compra_minima`
-  son null (nunca 0/false) y hay `total_parcial_solo_lineas_validas_cop` y un motivo por línea.
+  son null (nunca 0/false) y hay `total_parcial_solo_lineas_validas_cop` y un motivo por línea. Protección de
+  cantidades ambiguas: si el último mensaje del cliente no dice "paquete"/"unidad" ni la presentación (x12) y el
+  modelo usa ese número como paquetes, o es una cantidad suelta ("quiero 2", "un quesito"), la herramienta
+  devuelve un error que pide preguntar. `buscar_productos` cae a `buscarPorNombre` si el semántico no encuentra nada.
 - `lib/openai.ts`: cliente y modelo (variables `OPENAI_API_KEY`, `OPENAI_MODEL`).
 - `lib/limite.ts`: límite de solicitudes en memoria por IP.
 - `lib/formato.ts`: precios en COP y nivel de existencias. `lib/types.ts`: tipos compartidos.
@@ -83,7 +89,7 @@ NO es oficial de BERPA ni está conectado a sus sistemas.
 - `scripts/probar-slugs.mjs` (`npm run probar:slugs`): los 60 pares sin colisiones y solo con `[a-z0-9-]`.
 - `scripts/verificar-rutas.mjs` (`npm run verificar:rutas`, con el servidor en marcha): 67 rutas con HTTP 200,
   5 tarjetas por subcategoría (300), estructura común en cada página y 404 para rutas inventadas.
-- `scripts/evaluar.mjs` (`npm run evaluar`): 15 casos de comportamiento contra el servidor en marcha, incluidos casos
+- `scripts/evaluar.mjs` (`npm run evaluar`): 17 casos de comportamiento contra el servidor en marcha, incluidos casos
   de varios turnos (`mensajes`, con `porTurno` y `enCadaTurno`). El modelo no es determinista: correr varias veces.
 
 ## Docker

@@ -1,10 +1,10 @@
 import OpenAI from "openai";
 import { NextResponse } from "next/server";
-import { buscarPreguntas, buscarProductos, detectarTemasSinInformacion } from "@/lib/datos";
+import { buscarPreguntas, buscarProductos, detectarTemasSinInformacion, productosMencionados } from "@/lib/datos";
 import { permitirSolicitud } from "@/lib/limite";
 import { LIMITES, WHATSAPP } from "@/lib/config";
 import { claveConfigurada, obtenerCliente, obtenerModelo } from "@/lib/openai";
-import { INSTRUCCIONES, construirContexto, consultaDeBusqueda } from "@/lib/prompt";
+import { INSTRUCCIONES, construirContexto, consultaDeBusqueda, partesDeBusqueda } from "@/lib/prompt";
 import { recuperar } from "@/lib/rag";
 import { HERRAMIENTAS, ejecutarHerramienta } from "@/lib/herramientas";
 import type { Producto, RespuestaChat } from "@/lib/types";
@@ -69,6 +69,29 @@ function responderSimulado(consulta: string): RespuestaChat {
 }
 
 // Quita Markdown que la interfaz no muestra y deja los precios con punto de miles ($28.000).
+const CELULAR = /(?:\+?57\s?)?3\d{2}\s?\d{3}\s?\d{4}/g;
+const DIRECCION =
+  /\b(?:calle|carrera|cra\.?|cr\.?|cl\.?|avenida|av\.?|diagonal|dg\.?|transversal|tv\.?)\s*\d+\s*[a-z]?(?:\s*(?:#|no\.?|n°)\s*\d+\s*[a-z]?(?:\s*-\s*\d+)?)?/gi;
+
+// Si el cliente escribió su celular o su dirección, el asistente no debe repetirlos (regla 5 del prompt).
+// Esta protección los reemplaza en la respuesta aunque el modelo los repita; el WhatsApp de la tienda no se toca.
+function omitirDatosPersonales(texto: string, mensajesUsuario: string[]): string {
+  const soloDigitos = (s: string) => s.replace(/\D/g, "");
+  const delCliente = mensajesUsuario.join("\n");
+  const celulares = new Set(
+    (delCliente.match(CELULAR) ?? []).map((c) => soloDigitos(c).slice(-10)).filter((c) => c !== WHATSAPP)
+  );
+  const direcciones = (delCliente.match(DIRECCION) ?? []).map((d) => d.toLowerCase().replace(/\s+/g, " ").trim());
+
+  let salida = texto.replace(CELULAR, (c) => (celulares.has(soloDigitos(c).slice(-10)) ? "[dato omitido]" : c));
+  salida = salida.replace(DIRECCION, (d) =>
+    direcciones.some((x) => d.toLowerCase().replace(/\s+/g, " ").trim().startsWith(x.split(" ").slice(0, 2).join(" ")))
+      ? "[dato omitido]"
+      : d
+  );
+  return salida;
+}
+
 function limpiarTexto(texto: string): string {
   return texto
     .replace(/\*\*/g, "")
@@ -144,11 +167,18 @@ export async function POST(request: Request) {
   }
 
   const usuarios = mensajes.filter((m) => m.role === "user").map((m) => m.content);
-  const recuperados = await recuperar(consultaDeBusqueda(usuarios));
+  const recuperados = await recuperar(partesDeBusqueda(usuarios), consultaDeBusqueda(usuarios));
   console.log(`[rag] modo: ${recuperados.modo}, ${recuperados.ms} ms`);
 
   const conocidos = new Map<string, Producto>();
   recuperados.productos.forEach((p) => conocidos.set(p.id, p));
+
+  // El historial solo trae texto: los productos que el asistente ya nombró se recuperan por su nombre exacto
+  // para que el modelo conserve sus ids y variantes en los turnos siguientes.
+  const mencionados = productosMencionados(
+    mensajes.filter((m) => m.role === "assistant").map((m) => m.content).join("\n")
+  ).slice(0, 8);
+  mencionados.forEach((p) => conocidos.set(p.id, p));
 
   const input: OpenAI.Responses.ResponseInputItem[] = mensajes.map((m) => ({
     role: m.role,
@@ -157,7 +187,7 @@ export async function POST(request: Request) {
 
   try {
     const cliente = obtenerCliente();
-    const instrucciones = `${INSTRUCCIONES}\n\n${construirContexto(recuperados)}`;
+    const instrucciones = `${INSTRUCCIONES}\n\n${construirContexto(recuperados, mencionados)}`;
     let bruto = "";
 
     for (let vuelta = 0; vuelta < MAX_VUELTAS; vuelta++) {
@@ -200,7 +230,9 @@ export async function POST(request: Request) {
       }
     }
 
-    const { texto, productos } = separarProductos(bruto, Array.from(conocidos.values()));
+    const separado = separarProductos(bruto, Array.from(conocidos.values()));
+    const productos = separado.productos;
+    const texto = omitirDatosPersonales(separado.texto, usuarios);
 
     if (!texto) {
       return NextResponse.json(

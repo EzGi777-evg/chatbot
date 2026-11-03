@@ -1,11 +1,49 @@
 // Evalúa el comportamiento del chatbot contra el servidor en marcha (npm run dev).
 // Uso: npm run evaluar   (otra URL: EVALUAR_URL=http://localhost:3001 npm run evaluar)
+import { readFileSync } from "node:fs";
+
+// Nombres del catálogo sin "[Demo]", de más largo a más corto para no contar "Salchichas x12" dentro de otro nombre.
+const NOMBRES = JSON.parse(readFileSync(new URL("../data/productos.json", import.meta.url), "utf8"))
+  .productos.map((p) => p.nombre.replace(/^\[Demo\]\s*/, "").toLowerCase())
+  .sort((a, b) => b.length - a.length);
+
+function productosNombrados(texto) {
+  let resto = texto.toLowerCase();
+  const nombrados = new Set();
+  for (const nombre of NOMBRES) {
+    if (resto.includes(nombre)) {
+      nombrados.add(nombre);
+      resto = resto.split(nombre).join(" ");
+    }
+  }
+  return nombrados;
+}
+
+// Productos que ofrece el asistente: los nombrados en la respuesta que el cliente no nombró en su mensaje.
+function productosOfrecidos(r) {
+  const delCliente = productosNombrados(r.mensajeCliente);
+  return [...productosNombrados(r.respuesta)].filter((n) => !delCliente.has(n)).length;
+}
+
 const URL_CHAT = `${process.env.EVALUAR_URL ?? "http://localhost:3000"}/api/chat`;
 const WHATSAPP = /3023322766|whatsapp/i;
 
 const menciona = (re, motivo) => (r) => re.test(r.respuesta) || motivo;
 const noMenciona = (re, motivo) => (r) => !re.test(r.respuesta) || motivo;
 const tarjetas = (prueba, motivo) => (r) => prueba(r.productos) || motivo;
+
+const CUMPLE_MINIMO = /(cumpl\w*|super\w*|alcanz\w*)[^.\n]*m[ií]nim[oa]|m[ií]nim[oa][^.\n]*(cumpl|super|alcanz)/i;
+const NO_CUMPLE_MINIMO = /no (cumple|cumples|supera|superas|alcanza|alcanzas)[^.\n]*m[ií]nim[oa]/i;
+const HAMBURGUESAS = [
+  "necesito un pan de hamburguesa, la carne para la hamburguesa y salsa de tomate para un pedido a envigado, cuanto me costaria?",
+  "quiero hacer 30 hamburguesas",
+  "pero si el paquete de pan viene por 12 unidades y el de la carne viene por 10 si da no?",
+];
+const TOTAL_HAMBURGUESAS = [
+  menciona(/\$\s?(100\.500|91\.500)\b/, "el total no es $100.500 ni $91.500"),
+  menciona(CUMPLE_MINIMO, "no dice que cumple el mínimo"),
+  noMenciona(NO_CUMPLE_MINIMO, "dice que no cumple el mínimo"),
+];
 
 const CASOS = [
   {
@@ -46,7 +84,7 @@ const CASOS = [
     nombre: "Producto que no existe",
     mensaje: "¿Venden televisores?",
     esperado: [
-      menciona(/no (tenemos|tengo|encontr|manej|hay|vend|forma)/i, "no dice que no lo tiene"),
+      menciona(/no (se )?(tenemos|tengo|encontr|manej|hay|vend|forma)/i, "no dice que no lo tiene"),
       tarjetas((ps) => ps.length === 0, "muestra tarjetas de productos"),
     ],
   },
@@ -100,20 +138,49 @@ const CASOS = [
   },
 ];
 
+// Casos de varios turnos: "mensajes" son los turnos del cliente; el historial usa las respuestas reales.
+// "esperado" se comprueba en el último turno, "porTurno" en el turno indicado (desde 1) y "enCadaTurno" en todos.
+CASOS.push(
+  {
+    nombre: "Varios turnos: 30 hamburguesas (unidades y paquetes)",
+    mensajes: HAMBURGUESAS,
+    porTurno: { 2: TOTAL_HAMBURGUESAS, 3: TOTAL_HAMBURGUESAS },
+    enCadaTurno: [noMenciona(/\b0 (unidades|paquetes)\b/i, "dice que hay 0 unidades o paquetes")],
+    esperado: [],
+  },
+  {
+    nombre: "Unidades a paquetes: aceites y 30 panes",
+    mensaje: "necesito 2 aceites vegetales de 3 L y 30 panes de hamburguesa",
+    esperado: [
+      menciona(/\b3 paquetes\b/i, "no convierte 30 panes a 3 paquetes (o no los llama paquetes)"),
+      noMenciona(/\b30 paquetes\b/i, "trata los 30 panes como 30 paquetes"),
+    ],
+  },
+  {
+    nombre: "Unidades a paquetes: 30 salchichas cocktail",
+    mensaje: "30 salchichas cocktail",
+    esperado: [
+      menciona(/\b(1|un) paquete\b/i, "no dice que alcanza con 1 paquete"),
+      noMenciona(/insuficiente|no (hay|tenemos) suficientes?|no alcanzan? (las|los|para)|solo hay 5/i, "dice que no hay existencias suficientes"),
+    ],
+  }
+);
+
 // Comprobaciones que aplican a todas las respuestas.
 const GENERALES = [
   (r) => !/\*\*|^#+\s/m.test(r.respuesta) || "usa Markdown",
   (r) => r.productos.length <= 3 || "muestra más de 3 tarjetas",
-  (r) => (r.respuesta.match(/^\s*[-•]\s/gm) ?? []).length <= 3 || "lista más de 3 productos en el texto",
+  (r) => productosOfrecidos(r) <= 3 || "ofrece más de 3 productos distintos en el texto",
   (r) => r.productos.length === 0 || /demostraci[oó]n/i.test(r.respuesta) || "no aclara que es de demostración",
+  (r) => !/\$\s?0(?![\d.])/.test(r.respuesta) || "menciona $0",
 ];
 
-async function preguntar(mensaje) {
+async function preguntar(historial) {
   const inicio = performance.now();
   const res = await fetch(URL_CHAT, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ messages: [{ role: "user", content: mensaje }] }),
+    body: JSON.stringify({ messages: historial }),
   });
   const ms = Math.round(performance.now() - inicio);
   const datos = await res.json().catch(() => ({}));
@@ -131,36 +198,57 @@ let aprobados = 0;
 const tiempos = [];
 
 for (const caso of CASOS) {
-  let r;
-  try {
-    r = await preguntar(caso.mensaje);
-  } catch {
-    console.error(`No pude conectarme con ${URL_CHAT}. ¿Está corriendo npm run dev?`);
-    process.exit(1);
-  }
+  const turnos = caso.mensajes ?? [caso.mensaje];
+  const historial = [];
+  const fallas = [];
+  let ms = 0;
 
-  const fallas =
-    r.status !== 200
-      ? [`HTTP ${r.status}: ${r.error ?? "sin detalle"}`]
-      : [...caso.esperado, ...GENERALES].map((c) => c(r)).filter((x) => x !== true);
-  if (r.simulada) fallas.push("respuesta simulada (sin clave de OpenAI)");
+  for (const [i, turno] of turnos.entries()) {
+    historial.push({ role: "user", content: turno });
+    let r;
+    try {
+      r = { ...(await preguntar(historial)), mensajeCliente: turno };
+    } catch {
+      console.error(`No pude conectarme con ${URL_CHAT}. ¿Está corriendo npm run dev?`);
+      process.exit(1);
+    }
+    ms += r.ms;
+    const n = i + 1;
+    const etiqueta = turnos.length > 1 ? `turno ${n}: ` : "";
+
+    if (r.status !== 200) {
+      fallas.push(`${etiqueta}HTTP ${r.status}: ${r.error ?? "sin detalle"}`);
+      break;
+    }
+    if (r.simulada) fallas.push(`${etiqueta}respuesta simulada (sin clave de OpenAI)`);
+
+    const comprobaciones = [
+      ...GENERALES,
+      ...(caso.enCadaTurno ?? []),
+      ...(caso.porTurno?.[n] ?? []),
+      ...(n === turnos.length ? caso.esperado : []),
+    ];
+    const delTurno = comprobaciones.map((c) => c(r)).filter((x) => x !== true);
+    if (delTurno.length > 0) {
+      delTurno.forEach((f) => fallas.push(`${etiqueta}${f}`));
+      fallas.push(`${etiqueta}respuesta: ${r.respuesta.replace(/\n+/g, " ").slice(0, 300)}`);
+    }
+    historial.push({ role: "assistant", content: r.respuesta });
+  }
 
   const ok = fallas.length === 0;
   if (ok) aprobados++;
-  tiempos.push(r.ms);
+  tiempos.push(ms);
 
-  console.log(`${ok ? "✔" : "✘"} ${caso.nombre}  (${r.ms} ms)`);
-  if (!ok) {
-    fallas.forEach((f) => console.log(`    - ${f}`));
-    console.log(`    respuesta: ${r.respuesta.replace(/\n+/g, " ").slice(0, 300)}`);
-  }
+  console.log(`${ok ? "✔" : "✘"} ${caso.nombre}  (${ms} ms${turnos.length > 1 ? `, ${turnos.length} turnos` : ""})`);
+  fallas.forEach((f) => console.log(`    - ${f}`));
 }
 
 const media = (xs) => (xs.length ? Math.round(xs.reduce((a, b) => a + b, 0) / xs.length) : 0);
 const ordenados = [...tiempos].sort((a, b) => a - b);
 console.log(`\n${aprobados}/${CASOS.length} casos aprobados.`);
 console.log(
-  `Turno completo: media ${media(tiempos)} ms, mediana ${ordenados[Math.floor(ordenados.length / 2)]} ms, máximo ${ordenados.at(-1)} ms.`
+  `Por caso: media ${media(tiempos)} ms, mediana ${ordenados[Math.floor(ordenados.length / 2)]} ms, máximo ${ordenados.at(-1)} ms.`
 );
 console.log("El modo de recuperación (semántico o por palabras) de cada turno aparece en el log del servidor: [rag] modo.");
 process.exit(aprobados === CASOS.length ? 0 : 1);

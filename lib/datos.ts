@@ -42,6 +42,25 @@ function coincide(consulta: Set<string>, token: string): boolean {
   return false;
 }
 
+// Nombres del catálogo sin "[Demo]", del más largo al más corto, para que "Salsa de tomate 1 kg" no se cuente
+// dentro de un nombre más largo.
+const NOMBRES_POR_LARGO = productos
+  .map((p) => ({ p, nombre: p.nombre.replace(/^\[Demo\]\s*/, "").toLowerCase() }))
+  .sort((a, b) => b.nombre.length - a.nombre.length);
+
+// Productos del catálogo cuyo nombre exacto aparece en el texto (por ejemplo, en respuestas anteriores del asistente).
+export function productosMencionados(texto: string): Producto[] {
+  let resto = texto.toLowerCase();
+  const encontrados: Producto[] = [];
+  for (const { p, nombre } of NOMBRES_POR_LARGO) {
+    if (resto.includes(nombre)) {
+      encontrados.push(p);
+      resto = resto.split(nombre).join(" ");
+    }
+  }
+  return encontrados;
+}
+
 export function buscarProductos(consulta: string, limite = 5): Producto[] {
   const q = new Set(tokens(consulta));
   if (q.size === 0) return [];

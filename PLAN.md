@@ -112,3 +112,21 @@ Trabajo:
   encuentra ningún `.env*`; `docker history` no menciona `.env` ni claves; las variables de la imagen son solo las de
   Node y Next.js. Las tres coincidencias del patrón `sk-…` son cadenas de Next.js y de `sharp`, no claves.
 - Desde el contenedor: `npm run evaluar` da 12/12, con recuperación semántica en los 15 turnos del log.
+
+## Corrección: unidades y paquetes (2026-11-02)
+
+Error reportado: "30 hamburguesas" se cotizó como 30 paquetes, con total $0 y "no alcanza el mínimo".
+Causas verificadas con un log temporal (ya retirado):
+- Ninguna herramienta decía cuántas unidades trae un paquete; el modelo pasó cantidad 30 como paquetes.
+- `cotizar_productos` devolvía total 0 y `cumple_compra_minima: false` cuando había líneas con problema.
+- El historial solo trae texto: en el turno siguiente el modelo no tenía los ids y adivinó variantes
+  (carne x20 en lugar de x10, salchichas cocktail x30 en lugar de salsa).
+- La recuperación con un solo embedding por mensaje perdía productos en pedidos de varios productos.
+
+Cambios: `unidades_por_paquete` y `tipo_cantidad` con conversión en el servidor; totales null con problemas;
+sección "UNIDADES Y PAQUETES" en el prompt; recuperación por partes; productos ya nombrados en el contexto;
+omisión en el servidor del celular y la dirección del cliente; evaluador con casos de varios turnos (15 casos).
+
+Resultado de `npm run evaluar` (3 corridas finales): 14/15, 14/15 y 15/15. Las fallas restantes son del modelo:
+a veces convierte por su cuenta en lugar de usar `tipo_cantidad: "unidades"` (una vez dio 4 paquetes de carne x10
+para 30 carnes) y una vez no dijo explícitamente "no tenemos televisores".

@@ -1,24 +1,37 @@
 import type OpenAI from "openai";
 import { buscarProductos, categorias, productos } from "./datos";
 import { buscarSemantico } from "./rag";
-import { MAX_CANTIDAD, MAX_ITEMS_COTIZACION, MINIMO_COMPRA } from "./config";
+import { MAX_CANTIDAD, MAX_ITEMS_COTIZACION, MAX_UNIDADES, MINIMO_COMPRA } from "./config";
 import type { Producto } from "./types";
 
 type Resultado = { salida: Record<string, unknown>; productos: Producto[] };
 
+type TipoCantidad = "paquetes" | "unidades";
+
+// Paquetes necesarios para una cantidad, con lo que cubren y lo que sobra si se pidió en unidades.
+type Conversion = {
+  paquetes: number;
+  unidades_cubiertas: number | null;
+  sobrante_unidades: number | null;
+};
+
 type LineaCotizacion = {
   id: string;
-  cantidad: number;
   producto: Producto | null;
+  pedido: { cantidad: number; tipo: TipoCantidad }[];
+  conversion: Conversion | null;
   problema: string | null;
 };
+
+const descripcionTipo =
+  "'paquetes' si la cantidad es de paquetes o presentaciones del catálogo; 'unidades' si son piezas sueltas (por ejemplo 30 panes o 30 hamburguesas): el servidor calcula los paquetes necesarios.";
 
 export const HERRAMIENTAS: OpenAI.Responses.FunctionTool[] = [
   {
     type: "function",
     name: "buscar_productos",
     description:
-      "Busca productos en el catálogo de demostración por nombre, subcategoría o categoría. Devuelve hasta 6 productos con id, precio y existencias de demostración.",
+      "Busca productos en el catálogo de demostración por nombre, subcategoría o categoría. Devuelve hasta 6 productos con id, precio por paquete, existencias en paquetes y unidades_por_paquete.",
     parameters: {
       type: "object",
       properties: {
@@ -33,14 +46,15 @@ export const HERRAMIENTAS: OpenAI.Responses.FunctionTool[] = [
     type: "function",
     name: "consultar_existencias",
     description:
-      "Consulta si hay existencias de demostración de un producto para una cantidad. Si no alcanza, devuelve alternativas con existencias suficientes, primero de la misma subcategoría y luego de la misma categoría.",
+      "Consulta si hay existencias de demostración de un producto para una cantidad en paquetes o en unidades. Si no alcanza, devuelve alternativas con existencias suficientes, primero de la misma subcategoría y luego de la misma categoría.",
     parameters: {
       type: "object",
       properties: {
         producto_id: { type: "string", description: "Id del producto." },
-        cantidad: { type: "integer", description: "Unidades por las que pregunta el cliente." },
+        cantidad: { type: "integer", description: "Cantidad que pide el cliente." },
+        tipo_cantidad: { type: "string", enum: ["paquetes", "unidades"], description: descripcionTipo },
       },
-      required: ["producto_id", "cantidad"],
+      required: ["producto_id", "cantidad", "tipo_cantidad"],
       additionalProperties: false,
     },
     strict: true,
@@ -49,7 +63,7 @@ export const HERRAMIENTAS: OpenAI.Responses.FunctionTool[] = [
     type: "function",
     name: "cotizar_productos",
     description:
-      "Calcula subtotales y el total de una lista de productos del catálogo de demostración, verifica existencias y si se cumple la compra mínima. Solo informa: no guarda nada ni crea pedidos. El total no incluye el domicilio.",
+      "Calcula subtotales y el total de una lista de productos del catálogo de demostración, convierte unidades a paquetes, verifica existencias y si se cumple la compra mínima. Solo informa: no guarda nada ni crea pedidos. El total no incluye el domicilio. Si alguna línea tiene problema, el total y la compra mínima quedan en null.",
     parameters: {
       type: "object",
       properties: {
@@ -60,9 +74,10 @@ export const HERRAMIENTAS: OpenAI.Responses.FunctionTool[] = [
             type: "object",
             properties: {
               producto_id: { type: "string", description: "Id del producto devuelto por buscar_productos." },
-              cantidad: { type: "integer", description: "Unidades." },
+              cantidad: { type: "integer", description: "Cantidad que pide el cliente." },
+              tipo_cantidad: { type: "string", enum: ["paquetes", "unidades"], description: descripcionTipo },
             },
-            required: ["producto_id", "cantidad"],
+            required: ["producto_id", "cantidad", "tipo_cantidad"],
             additionalProperties: false,
           },
         },
@@ -74,19 +89,63 @@ export const HERRAMIENTAS: OpenAI.Responses.FunctionTool[] = [
   },
 ];
 
+// Unidades por paquete según el nombre ("Pan para hamburguesa x12" → 12); null si el nombre no lo indica.
+export function unidadesPorPaquete(p: Producto): number | null {
+  const m = p.nombre.match(/\bx\s?(\d+)\b/i);
+  return m ? Number(m[1]) : null;
+}
+
 function resumen(p: Producto) {
   return {
     id: p.id,
     nombre: p.nombre,
     categoria: p.categoria,
     subcategoria: p.subcategoria,
-    precio_cop: p.precio,
-    existencias_demo: p.existencias,
+    precio_por_paquete_cop: p.precio,
+    existencias_demo_paquetes: p.existencias,
+    unidades_por_paquete: unidadesPorPaquete(p),
   };
 }
 
 function fallo(mensaje: string): Resultado {
   return { salida: { ok: false, error: mensaje }, productos: [] };
+}
+
+function esTipo(valor: unknown): valor is TipoCantidad {
+  return valor === "paquetes" || valor === "unidades";
+}
+
+function cantidadValida(cantidad: unknown, tipo: TipoCantidad): cantidad is number {
+  const maximo = tipo === "unidades" ? MAX_UNIDADES : MAX_CANTIDAD;
+  return typeof cantidad === "number" && Number.isInteger(cantidad) && cantidad >= 1 && cantidad <= maximo;
+}
+
+function convertir(p: Producto, cantidad: number, tipo: TipoCantidad): Conversion | { error: string } {
+  const porPaquete = unidadesPorPaquete(p);
+  if (tipo === "paquetes") {
+    return {
+      paquetes: cantidad,
+      unidades_cubiertas: porPaquete === null ? null : cantidad * porPaquete,
+      sobrante_unidades: null,
+    };
+  }
+  if (porPaquete === null) {
+    return {
+      error: `"${p.nombre}" no indica cuántas unidades trae cada paquete: pregunta al cliente cuántos paquetes quiere.`,
+    };
+  }
+  const paquetes = Math.ceil(cantidad / porPaquete);
+  return {
+    paquetes,
+    unidades_cubiertas: paquetes * porPaquete,
+    sobrante_unidades: paquetes * porPaquete - cantidad,
+  };
+}
+
+function textoPedido(cantidad: number, tipo: TipoCantidad, c: Conversion): string {
+  return tipo === "unidades"
+    ? `pide ${cantidad} unidades (${c.paquetes} paquetes)`
+    : `pide ${c.paquetes} paquetes`;
 }
 
 async function buscar(args: unknown): Promise<Resultado> {
@@ -119,7 +178,7 @@ async function buscar(args: unknown): Promise<Resultado> {
     salida: {
       ok: true,
       resultados: encontrados.map(resumen),
-      nota: "Precios y existencias ficticios de demostración.",
+      nota: "Precios y existencias ficticios de demostración. Las existencias están en paquetes; unidades_por_paquete dice cuántas unidades trae cada uno (null si no se sabe).",
     },
     productos: encontrados,
   };
@@ -129,38 +188,36 @@ function existencias(args: unknown): Resultado {
   const a = (typeof args === "object" && args !== null ? args : {}) as {
     producto_id?: unknown;
     cantidad?: unknown;
+    tipo_cantidad?: unknown;
   };
-  if (
-    typeof a.producto_id !== "string" ||
-    typeof a.cantidad !== "number" ||
-    !Number.isInteger(a.cantidad) ||
-    a.cantidad < 1 ||
-    a.cantidad > MAX_CANTIDAD
-  ) {
-    return fallo(`Se requiere un producto_id y una cantidad entera entre 1 y ${MAX_CANTIDAD}.`);
+  if (typeof a.producto_id !== "string" || !esTipo(a.tipo_cantidad) || !cantidadValida(a.cantidad, a.tipo_cantidad)) {
+    return fallo(
+      `Se requiere producto_id, tipo_cantidad ('paquetes' o 'unidades') y una cantidad entera (hasta ${MAX_CANTIDAD} paquetes o ${MAX_UNIDADES} unidades).`
+    );
   }
 
-  const cantidad = a.cantidad;
+  const { cantidad, tipo_cantidad: tipo } = a;
   const producto = productos.find((p) => p.id === a.producto_id);
   if (!producto) return fallo("Producto no encontrado. Usa un id devuelto por buscar_productos.");
 
-  const alcanza = producto.existencias !== null && producto.existencias >= cantidad;
+  const conversion = convertir(producto, cantidad, tipo);
+  if ("error" in conversion) return fallo(conversion.error);
 
+  const alcanza = producto.existencias !== null && producto.existencias >= conversion.paquetes;
+
+  // Alternativas: para unidades, cada una con sus propios paquetes necesarios.
   const alternativas = alcanza
     ? []
     : productos
+        .filter((x) => x.id !== producto.id && x.categoria === producto.categoria && x.precio !== null)
+        .map((x) => ({ x, c: convertir(x, cantidad, tipo) }))
         .filter(
-          (x) =>
-            x.id !== producto.id &&
-            x.categoria === producto.categoria &&
-            x.precio !== null &&
-            x.existencias !== null &&
-            x.existencias >= cantidad
+          (y): y is { x: Producto; c: Conversion } =>
+            !("error" in y.c) && y.x.existencias !== null && y.x.existencias >= y.c.paquetes
         )
         .sort(
-          (x, y) =>
-            Number(y.subcategoria === producto.subcategoria) -
-            Number(x.subcategoria === producto.subcategoria)
+          (y, z) =>
+            Number(z.x.subcategoria === producto.subcategoria) - Number(y.x.subcategoria === producto.subcategoria)
         )
         .slice(0, 3);
 
@@ -169,14 +226,20 @@ function existencias(args: unknown): Resultado {
       ok: true,
       producto: resumen(producto),
       cantidad_solicitada: cantidad,
+      tipo_cantidad: tipo,
+      ...conversion,
       alcanza,
-      alternativas: alternativas.map((x) => ({
+      motivo: alcanza
+        ? null
+        : `${textoPedido(cantidad, tipo, conversion)} y hay ${producto.existencias ?? "desconocidas"} paquetes`,
+      alternativas: alternativas.map(({ x, c }) => ({
         ...resumen(x),
+        paquetes_necesarios: c.paquetes,
         misma_subcategoria: x.subcategoria === producto.subcategoria,
       })),
-      nota: "Existencias ficticias de demostración. Las alternativas con misma_subcategoria=true son del mismo tipo de producto; las demás son solo de la misma categoría.",
+      nota: "Existencias ficticias de demostración, en paquetes. Las alternativas con misma_subcategoria=true son del mismo tipo de producto; las demás son solo de la misma categoría.",
     },
-    productos: [producto, ...alternativas],
+    productos: [producto, ...alternativas.map((y) => y.x)],
   };
 }
 
@@ -185,31 +248,52 @@ function analizarItems(crudos: unknown): { ok: true; lineas: LineaCotizacion[] }
     return { ok: false, error: `La lista de productos debe tener entre 1 y ${MAX_ITEMS_COTIZACION} elementos.` };
   }
 
-  const acumulado = new Map<string, number>();
+  const porProducto = new Map<string, { cantidad: number; tipo: TipoCantidad }[]>();
   for (const it of crudos) {
     if (typeof it !== "object" || it === null) return { ok: false, error: "Elemento de producto inválido." };
-    const { producto_id, cantidad } = it as { producto_id?: unknown; cantidad?: unknown };
-    if (
-      typeof producto_id !== "string" ||
-      typeof cantidad !== "number" ||
-      !Number.isInteger(cantidad) ||
-      cantidad < 1 ||
-      cantidad > MAX_CANTIDAD
-    ) {
-      return { ok: false, error: `Cada producto necesita un id y una cantidad entera entre 1 y ${MAX_CANTIDAD}.` };
+    const { producto_id, cantidad, tipo_cantidad } = it as {
+      producto_id?: unknown;
+      cantidad?: unknown;
+      tipo_cantidad?: unknown;
+    };
+    if (typeof producto_id !== "string" || !esTipo(tipo_cantidad) || !cantidadValida(cantidad, tipo_cantidad)) {
+      return {
+        ok: false,
+        error: `Cada producto necesita un id, tipo_cantidad ('paquetes' o 'unidades') y una cantidad entera (hasta ${MAX_CANTIDAD} paquetes o ${MAX_UNIDADES} unidades).`,
+      };
     }
-    acumulado.set(producto_id, (acumulado.get(producto_id) ?? 0) + cantidad);
+    porProducto.set(producto_id, [...(porProducto.get(producto_id) ?? []), { cantidad, tipo: tipo_cantidad }]);
   }
 
-  const lineas = Array.from(acumulado.entries()).map(([id, cantidad]) => {
+  const lineas = Array.from(porProducto.entries()).map(([id, pedido]): LineaCotizacion => {
     const producto = productos.find((p) => p.id === id) ?? null;
-    let problema: string | null = null;
-    if (!producto) problema = "El producto no existe en el catálogo.";
-    else if (producto.precio === null) problema = "El producto no tiene precio disponible.";
-    else if (producto.existencias === null || producto.existencias < cantidad) {
-      problema = `Existencias de demostración insuficientes (disponibles: ${producto.existencias ?? "desconocidas"}).`;
+    if (!producto) return { id, producto, pedido, conversion: null, problema: `el producto ${id} no existe en el catálogo` };
+    if (producto.precio === null) {
+      return { id, producto, pedido, conversion: null, problema: `"${producto.nombre}" no tiene precio disponible` };
     }
-    return { id, cantidad, producto, problema };
+
+    // Si el mismo producto viene varias veces, se suman los paquetes de cada pedido.
+    const partes = pedido.map((x) => convertir(producto, x.cantidad, x.tipo));
+    const error = partes.find((x): x is { error: string } => "error" in x);
+    if (error) return { id, producto, pedido, conversion: null, problema: error.error };
+
+    const validas = partes as Conversion[];
+    const conversion: Conversion = {
+      paquetes: validas.reduce((s, x) => s + x.paquetes, 0),
+      unidades_cubiertas: validas.every((x) => x.unidades_cubiertas !== null)
+        ? validas.reduce((s, x) => s + (x.unidades_cubiertas ?? 0), 0)
+        : null,
+      sobrante_unidades: validas.some((x) => x.sobrante_unidades !== null)
+        ? validas.reduce((s, x) => s + (x.sobrante_unidades ?? 0), 0)
+        : null,
+    };
+
+    const disponibles = producto.existencias;
+    const problema =
+      disponibles === null || disponibles < conversion.paquetes
+        ? `${pedido.map((x, i) => textoPedido(x.cantidad, x.tipo, validas[i])).join(" y ")} de "${producto.nombre}" y hay ${disponibles ?? "desconocidas"} paquetes`
+        : null;
+    return { id, producto, pedido, conversion, problema };
   });
 
   return { ok: true, lineas };
@@ -223,8 +307,11 @@ function cotizar(args: unknown): Resultado {
 
   const { lineas } = analisis;
   const subtotal = (l: LineaCotizacion) =>
-    l.producto && l.producto.precio !== null && !l.problema ? l.producto.precio * l.cantidad : null;
-  const total = lineas.reduce((suma, l) => suma + (subtotal(l) ?? 0), 0);
+    l.producto && l.producto.precio !== null && l.conversion && !l.problema
+      ? l.producto.precio * l.conversion.paquetes
+      : null;
+  const parcial = lineas.reduce((suma, l) => suma + (subtotal(l) ?? 0), 0);
+  const conProblemas = lineas.some((l) => l.problema !== null);
 
   return {
     salida: {
@@ -232,17 +319,27 @@ function cotizar(args: unknown): Resultado {
       lineas: lineas.map((l) => ({
         producto_id: l.id,
         nombre: l.producto?.nombre ?? null,
-        cantidad: l.cantidad,
-        precio_unitario_cop: l.producto?.precio ?? null,
+        pedido: l.pedido.map((x) => ({ cantidad: x.cantidad, tipo_cantidad: x.tipo })),
+        unidades_por_paquete: l.producto ? unidadesPorPaquete(l.producto) : null,
+        paquetes: l.conversion?.paquetes ?? null,
+        unidades_cubiertas: l.conversion?.unidades_cubiertas ?? null,
+        sobrante_unidades: l.conversion?.sobrante_unidades ?? null,
+        precio_por_paquete_cop: l.producto?.precio ?? null,
+        existencias_demo_paquetes: l.producto?.existencias ?? null,
         subtotal_cop: subtotal(l),
         problema: l.problema,
       })),
-      total_productos_cop: total,
+      todas_las_lineas_validas: !conProblemas,
+      // Con alguna línea con problema no hay total: nunca se informa 0 ni "no cumple el mínimo".
+      total_productos_cop: conProblemas ? null : parcial,
+      cumple_compra_minima: conProblemas ? null : parcial >= MINIMO_COMPRA,
+      faltante_para_minimo_cop: conProblemas ? null : Math.max(0, MINIMO_COMPRA - parcial),
+      total_parcial_solo_lineas_validas_cop:
+        conProblemas && lineas.some((l) => subtotal(l) !== null) ? parcial : null,
       compra_minima_cop: MINIMO_COMPRA,
-      cumple_compra_minima: total >= MINIMO_COMPRA,
-      faltante_para_minimo_cop: Math.max(0, MINIMO_COMPRA - total),
-      hay_problemas: lineas.some((l) => l.problema !== null),
-      nota: "Cotización informativa con precios y existencias ficticios de demostración. No crea ningún pedido. El total no incluye el domicilio.",
+      nota: conProblemas
+        ? "Hay líneas con problema, así que no hay total ni se puede decir si se cumple la compra mínima. Explica cada problema y pregunta cómo ajustar. No digas que el total es $0 ni que no se alcanza el mínimo."
+        : "Cotización informativa con precios y existencias ficticios de demostración. No crea ningún pedido. El total no incluye el domicilio.",
     },
     productos: lineas.flatMap((l) => (l.producto ? [l.producto] : [])),
   };

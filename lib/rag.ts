@@ -141,16 +141,22 @@ export async function buscarSemantico(consulta: string, limiteProductos = 5, lim
   }
 }
 
+// partes: fragmentos de búsqueda de productos (cada producto pedido por separado); consulta: el mensaje
+// completo, para las preguntas frecuentes y para el buscador por palabras de respaldo.
 export async function recuperar(
+  partes: string[],
   consulta: string,
-  limiteProductos = 5,
+  limiteProductos = 8,
   limitePreguntas = 3
 ): Promise<Recuperacion> {
   const inicio = performance.now();
-  const semantico = await buscarSemantico(consulta, limiteProductos, limitePreguntas);
+  const [general, ...porParte] = await Promise.all([
+    buscarSemantico(consulta, 3, limitePreguntas),
+    ...partes.map((p) => buscarSemantico(p, 3, 0)),
+  ]);
   const ms = Math.round(performance.now() - inicio);
 
-  if (!semantico) {
+  if (!general || porParte.some((x) => x === null)) {
     return {
       productos: buscarProductos(consulta, limiteProductos),
       preguntas: buscarPreguntas(consulta, limitePreguntas),
@@ -159,14 +165,20 @@ export async function recuperar(
     };
   }
 
-  const encontrados = semantico.productos
-    .map((x) => productos.find((p) => p.id === x.f.id))
+  // Se intercalan los mejores de cada parte para que ningún producto pedido quede fuera.
+  const listas = [...porParte, general].map((x) => x?.productos.map((y) => y.f.id) ?? []);
+  const ids: string[] = [];
+  for (let i = 0; ids.length < limiteProductos && listas.some((l) => i < l.length); i++) {
+    for (const l of listas) if (l[i] && !ids.includes(l[i]) && ids.length < limiteProductos) ids.push(l[i]);
+  }
+  const encontrados = ids
+    .map((id) => productos.find((p) => p.id === id))
     .filter((p): p is Producto => Boolean(p));
 
   // Las preguntas por palabras clave se suman: son pocas y sus palabras clave están curadas a mano.
-  const ids = new Set(semantico.preguntas.map((x) => x.f.id));
-  buscarPreguntas(consulta, limitePreguntas).forEach((p) => ids.add(p.id));
-  const relevantes = preguntas.filter((p) => ids.has(p.id));
+  const idsPreguntas = new Set(general.preguntas.map((x) => x.f.id));
+  buscarPreguntas(consulta, limitePreguntas).forEach((p) => idsPreguntas.add(p.id));
+  const relevantes = preguntas.filter((p) => idsPreguntas.has(p.id));
 
   return { productos: encontrados, preguntas: relevantes, modo: "semantico", ms };
 }

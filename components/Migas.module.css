@@ -1,0 +1,31 @@
+.migas ol {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  font-size: 0.85rem;
+  color: #5a5a66;
+}
+
+.migas li + li::before {
+  content: "/";
+  margin-right: 4px;
+  color: #9a9aa6;
+}
+
+.migas a {
+  color: var(--azul);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  border-radius: 3px;
+}
+
+.migas a:focus-visible {
+  outline: 3px solid var(--azul);
+  outline-offset: 2px;
+}
+
+.migas [aria-current="page"] {
+  color: var(--texto);
+  font-weight: 600;
+}

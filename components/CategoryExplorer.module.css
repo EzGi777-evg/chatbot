@@ -22,6 +22,10 @@
   color: var(--texto);
 }
 .item:hover { background: #f3f0ff; }
+.item:focus-visible, .itemActive:focus-visible {
+  outline: 3px solid var(--azul);
+  outline-offset: 2px;
+}
 .itemActive { background: #ebe6ff; color: var(--azul); font-weight: 600; }
 .icon { font-size: 2rem; }
 
@@ -33,14 +37,29 @@
   font-size: 2.2rem;
   text-align: center;
   text-transform: uppercase;
-  margin-bottom: 16px;
+  margin-bottom: 8px;
 }
+.verTodo { text-align: center; margin-bottom: 16px; }
+.enlaceTodo {
+  color: var(--azul);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  border-radius: 4px;
+}
+.enlaceTodo:hover { color: var(--azul-oscuro); }
+.enlaceTodo:focus-visible { outline: 3px solid var(--azul); outline-offset: 3px; }
 .grid {
+  list-style: none;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
   gap: 12px;
 }
 .card {
+  display: block;
+  height: 100%;
+  color: inherit;
+  text-decoration: none;
   background: var(--blanco);
   border-radius: 10px;
   box-shadow: var(--sombra);
@@ -50,3 +69,5 @@
   font-size: 1.1rem;
   letter-spacing: 0.3px;
 }
+.card:hover { box-shadow: 0 2px 10px rgba(42, 15, 168, 0.25); color: var(--azul); }
+.card:focus-visible { outline: 3px solid var(--azul); outline-offset: 2px; color: var(--azul); }

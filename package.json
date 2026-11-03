@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "eslint",
     "indexar": "node --env-file=.env.local scripts/indexar.mjs",
-    "evaluar": "node scripts/evaluar.mjs"
+    "evaluar": "node scripts/evaluar.mjs",
+    "probar:slugs": "node scripts/probar-slugs.mjs",
+    "verificar:rutas": "node scripts/verificar-rutas.mjs"
   },
   "dependencies": {
     "next": "16.4.3",

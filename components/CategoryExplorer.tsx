@@ -1,10 +1,16 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import type { Categoria } from "@/lib/types";
 import styles from "./CategoryExplorer.module.css";
 
-export default function CategoryExplorer({ categorias }: { categorias: Categoria[] }) {
+export type CategoriaFranja = Categoria & {
+  ruta: string;
+  enlaces: { nombre: string; ruta: string }[];
+};
+
+export default function CategoryExplorer({ categorias }: { categorias: CategoriaFranja[] }) {
   const [activaId, setActivaId] = useState<string | null>(null);
   const activa = categorias.find((c) => c.id === activaId) ?? null;
 
@@ -28,11 +34,20 @@ export default function CategoryExplorer({ categorias }: { categorias: Categoria
       {activa && (
         <div className={styles.panel}>
           <h2 className={styles.title}>{activa.nombre}</h2>
-          <div className={styles.grid}>
-            {activa.subcategorias.map((s) => (
-              <div key={s} className={styles.card}>{s}</div>
+          <p className={styles.verTodo}>
+            <Link href={activa.ruta} className={styles.enlaceTodo}>
+              Ver toda la categoría →
+            </Link>
+          </p>
+          <ul className={styles.grid}>
+            {activa.enlaces.map((s) => (
+              <li key={s.ruta}>
+                <Link href={s.ruta} className={styles.card}>
+                  {s.nombre}
+                </Link>
+              </li>
             ))}
-          </div>
+          </ul>
         </div>
       )}
     </section>

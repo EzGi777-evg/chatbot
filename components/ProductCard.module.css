@@ -52,3 +52,19 @@
     padding: 2px 8px;
     border-radius: 999px;
 }
+.stock {
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+.ok { color: #1f7a3a; }
+.bajo { color: #a04a00; }
+.agotado { color: #8a1c1c; }
+.desconocido { color: #5a5a66; }
+
+/* Agotado: visible pero atenuado. Se atenúan la imagen y el precio; el texto mantiene contraste legible. */
+.cardAgotada { background: #f6f6f8; }
+.cardAgotada .image, .cardAgotada .placeholder {
+    opacity: 0.45;
+    filter: grayscale(1);
+}
+.cardAgotada .price { color: #6b6b75; }

@@ -1,12 +1,54 @@
 import categoriasData from "@/data/categorias.json";
 import productosData from "@/data/productos.json";
 import preguntasData from "@/data/preguntas.json";
+import { aSlug } from "./slug.mjs";
 import type { Categoria, Producto, Pregunta, TemaSinInformacion } from "./types";
 
 export const categorias = categoriasData.categorias as Categoria[];
 export const productos = productosData.productos as Producto[];
 export const preguntas = preguntasData.preguntas as Pregunta[];
 export const temasSinInformacion = preguntasData.temasSinInformacion as TemaSinInformacion[];
+
+// --- Rutas del catálogo ---------------------------------------------------------------------------
+// Una subcategoría se identifica siempre por el par categoría + subcategoría: "Guantes, gorros y
+// tapabocas" existe en dos categorías. La categoría usa su id (ya es un slug); la subcategoría, aSlug.
+
+export type Subcategoria = { categoria: Categoria; nombre: string; slug: string };
+
+export const subcategorias: Subcategoria[] = categorias.flatMap((categoria) =>
+  categoria.subcategorias.map((nombre) => ({ categoria, nombre, slug: aSlug(nombre) }))
+);
+
+// Si dos subcategorías de una misma categoría dieran el mismo slug, se falla al cargar (y el build no pasa).
+for (const c of categorias) {
+  const slugs = subcategorias.filter((s) => s.categoria.id === c.id).map((s) => s.slug);
+  const repetido = slugs.find((s, i) => slugs.indexOf(s) !== i);
+  if (repetido) throw new Error(`Slug de subcategoría repetido en "${c.id}": ${repetido}`);
+}
+
+export function rutaCategoria(categoria: Categoria): string {
+  return `/categoria/${categoria.id}`;
+}
+
+export function rutaSubcategoria(sub: Subcategoria): string {
+  return `/categoria/${sub.categoria.id}/${sub.slug}`;
+}
+
+export function categoriaPorSlug(slug: string): Categoria | undefined {
+  return categorias.find((c) => c.id === slug);
+}
+
+export function subcategoriaPorSlugs(categoriaSlug: string, subcategoriaSlug: string): Subcategoria | undefined {
+  return subcategorias.find((s) => s.categoria.id === categoriaSlug && s.slug === subcategoriaSlug);
+}
+
+export function subcategoriasDe(categoria: Categoria): Subcategoria[] {
+  return subcategorias.filter((s) => s.categoria.id === categoria.id);
+}
+
+export function productosDeSubcategoria(sub: Subcategoria): Producto[] {
+  return productos.filter((p) => p.categoria === sub.categoria.id && p.subcategoria === sub.nombre);
+}
 
 const PALABRAS_VACIAS = new Set([
   "los", "las", "una", "uno", "unos", "unas", "del", "por", "con", "que", "para",

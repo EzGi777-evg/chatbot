@@ -38,17 +38,27 @@ NO es oficial de BERPA ni está conectado a sus sistemas.
 
 ## Estructura
 
-- `app/page.tsx`, `app/layout.tsx`: página de demostración (aviso de no afiliación, catálogo destacado, chat).
+- `app/layout.tsx`: estructura común a todas las páginas (aviso de no afiliación, `Header`, pie y `Chatbot`).
+  El chat vive en el layout: su conversación y el panel abierto se conservan al navegar con enlaces (se pierden al
+  recargar). `app/not-found.tsx`: 404 propia.
+- `app/page.tsx`: inicio (franja de categorías con enlaces a subcategorías y "Ver toda la categoría", destacados).
+- `app/categoria/[categoria]/page.tsx` y `app/categoria/[categoria]/[subcategoria]/page.tsx`: catálogo navegable,
+  generado con `generateStaticParams` (7 + 60 páginas), `dynamicParams = false` (otro slug → 404), migas
+  (`components/Migas.tsx`) y `generateMetadata`. La categoría usa su `id`; la subcategoría, `aSlug(nombre)`, y se
+  identifica siempre por el par categoría + subcategoría ("Guantes, gorros y tapabocas" está en dos categorías).
+- `lib/slug.mjs`: `aSlug`, única función de slug (JavaScript para que la usen también los scripts).
 - `app/api/salud/route.ts`: healthcheck del contenedor; devuelve solo `{"ok": true}`.
 - `app/api/chat/route.ts`: endpoint del chat. Valida mensajes, limita por IP, arma el contexto y ejecuta
   el ciclo de herramientas con la API Responses. Sin clave configurada responde en modo simulado
   con el buscador local. Si la respuesta trae productos y no dice "demostración", agrega la nota. Pasa al modelo los
   productos que el asistente ya nombró en turnos anteriores (el historial solo es texto) y reemplaza por
   "[dato omitido]" el celular o la dirección que el cliente haya escrito si el modelo los repite.
-- `components/`: `Chatbot` (panel de chat), `ChatProduct` (tarjetas en el chat), `Header`,
-  `CategoryExplorer`, `ProductCard`, cada uno con su `.module.css`.
+- `components/`: `Chatbot` (panel de chat), `ChatProduct` (tarjetas en el chat), `Header`, `CategoryExplorer`,
+  `ProductCard` (precio, existencias con `describirExistencias`, agotados atenuados), `Migas`, cada uno con su
+  `.module.css`.
 - `lib/config.ts`: límites, WhatsApp y compra mínima ($80.000, sobre productos, sin domicilio).
-- `lib/datos.ts`: carga de `data/*.json` y buscador por palabras (productos, preguntas, temas sin información).
+- `lib/datos.ts`: carga de `data/*.json`, rutas del catálogo (`subcategorias`, `rutaCategoria`, `rutaSubcategoria`,
+  `subcategoriaPorSlugs`, `productosDeSubcategoria`…) y buscador por palabras. Las páginas no leen los JSON.
 - `lib/rag.ts`: búsqueda semántica sobre `data/indice-embeddings.json` por partes del mensaje (cada producto pedido
   y las partes del mensaje anterior del cliente, en paralelo e intercaladas; coseno en memoria, caché de consultas,
   pausa de 60 s tras una falla de la API). Si no hay índice válido o falla la API, usa el buscador por palabras.
@@ -70,6 +80,9 @@ NO es oficial de BERPA ni está conectado a sus sistemas.
 - `scripts/indexar.mjs` (`npm run indexar`): genera el índice con `OPENAI_EMBEDDING_MODEL` (512 dimensiones). Embebe solo
   nombre + subcategoría + categoría + frase de uso; la marca ficticio/verificado va como metadato. Repetir tras cambiar
   `data/productos.json` o `data/preguntas.json`.
+- `scripts/probar-slugs.mjs` (`npm run probar:slugs`): los 60 pares sin colisiones y solo con `[a-z0-9-]`.
+- `scripts/verificar-rutas.mjs` (`npm run verificar:rutas`, con el servidor en marcha): 67 rutas con HTTP 200,
+  5 tarjetas por subcategoría (300), estructura común en cada página y 404 para rutas inventadas.
 - `scripts/evaluar.mjs` (`npm run evaluar`): 15 casos de comportamiento contra el servidor en marcha, incluidos casos
   de varios turnos (`mensajes`, con `porTurno` y `enCadaTurno`). El modelo no es determinista: correr varias veces.
 
@@ -84,6 +97,7 @@ NO es oficial de BERPA ni está conectado a sus sistemas.
 
 ## Comandos
 
-- `npm run dev`, `npm run build`, `npm run lint`, `npx tsc --noEmit`, `npm run indexar`, `npm run evaluar`.
+- `npm run dev`, `npm run build`, `npm run lint`, `npx next typegen && npx tsc --noEmit` (los tipos `PageProps`
+  se generan con typegen), `npm run indexar`, `npm run evaluar`, `npm run probar:slugs`, `npm run verificar:rutas`.
 
 Mantener esta sección de estructura al día al cerrar cada fase.

@@ -1,15 +1,13 @@
 import type { Producto } from "@/lib/types";
+import { describirExistencias, formatearPrecio } from "@/lib/formato";
 import styles from "./ProductCard.module.css";
 
-const formatoCOP = new Intl.NumberFormat("es-CO", {
-  style: "currency",
-  currency: "COP",
-  maximumFractionDigits: 0,
-});
-
 export default function ProductCard({ producto }: { producto: Producto }) {
+  const existencias = describirExistencias(producto.existencias);
+  const agotado = existencias.nivel === "agotado";
+
   return (
-    <article className={styles.card}>
+    <article className={agotado ? `${styles.card} ${styles.cardAgotada}` : styles.card} data-tarjeta-producto={producto.id}>
       {producto.imagen ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img className={styles.image} src={producto.imagen} alt={producto.nombre} />
@@ -19,9 +17,8 @@ export default function ProductCard({ producto }: { producto: Producto }) {
       <div className={styles.body}>
         <h3 className={styles.name}>{producto.nombre}</h3>
         <p className={styles.desc}>{producto.descripcion}</p>
-        <p className={styles.price}>
-          {producto.precio !== null ? formatoCOP.format(producto.precio) : "Precio por verificar"}
-        </p>
+        <p className={styles.price}>{formatearPrecio(producto.precio)}</p>
+        <p className={`${styles.stock} ${styles[existencias.nivel]}`}>{existencias.texto}</p>
         {!producto.verificado && <span className={styles.badge}>Dato de demostración</span>}
       </div>
     </article>

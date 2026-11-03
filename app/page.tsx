@@ -1,8 +1,6 @@
-import Header from "@/components/Header";
 import CategoryExplorer from "@/components/CategoryExplorer";
 import ProductCard from "@/components/ProductCard";
-import Chatbot from "@/components/Chatbot";
-import { categorias, productos } from "@/lib/datos";
+import { categorias, productos, rutaCategoria, rutaSubcategoria, subcategoriasDe } from "@/lib/datos";
 import type { Producto } from "@/lib/types";
 import styles from "./page.module.css";
 
@@ -10,14 +8,17 @@ const destacados = categorias
   .map((c) => productos.find((p) => p.categoria === c.id))
   .filter((p): p is Producto => Boolean(p));
 
+// La franja recibe datos simples (sin funciones) porque es un componente de cliente.
+const franja = categorias.map((c) => ({
+  ...c,
+  ruta: rutaCategoria(c),
+  enlaces: subcategoriasDe(c).map((s) => ({ nombre: s.nombre, ruta: rutaSubcategoria(s) })),
+}));
+
 export default function Home() {
   return (
     <>
-      <div className={styles.aviso}>
-        Demostración independiente. No es la tienda oficial de BERPA ni está conectada a ella.
-      </div>
-      <Header />
-      <CategoryExplorer categorias={categorias} />
+      <CategoryExplorer categorias={franja} />
 
       <main className={styles.main}>
         <section className={styles.hero}>
@@ -34,13 +35,6 @@ export default function Home() {
           </div>
         </section>
       </main>
-
-      <footer className={styles.footer}>
-        Prototipo con fines ilustrativos, sin afiliación con BERPA. Los productos, precios y existencias
-        mostrados son ficticios y deben verificarse antes de cualquier uso comercial.
-      </footer>
-
-      <Chatbot />
     </>
   );
 }

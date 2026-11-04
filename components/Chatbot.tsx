@@ -174,7 +174,9 @@ export default function Chatbot() {
             {mensajes.map((m, i) => (
               <div
                 key={i}
-                className={`${styles.fila} ${m.role === "user" ? styles.filaUsuario : styles.filaBot}`}
+                className={`${styles.fila} ${m.role === "user" ? styles.filaUsuario : styles.filaBot} ${
+                  m.productos && m.productos.length > 0 ? styles.filaConProductos : ""
+                }`}
               >
                 <div className={`${styles.burbuja} ${m.role === "user" ? styles.usuario : styles.bot}`}>
                   {m.content}

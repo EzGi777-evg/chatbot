@@ -39,7 +39,7 @@
 }
 .titulo { display: flex; flex-direction: column; }
 .demo { font-size: 0.75rem; color: var(--amarillo); }
-.acciones { display: flex; align-items: center; gap: 6px; }
+.acciones { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 .nueva,
 .cerrar {
   min-height: 40px;
@@ -69,6 +69,9 @@
 .fila { display: flex; flex-direction: column; gap: 6px; max-width: 92%; }
 .filaBot { align-self: flex-start; }
 .filaUsuario { align-self: flex-end; align-items: flex-end; }
+/* Con tarjetas, la fila toma el ancho completo para que la rejilla pueda usar dos columnas; la burbuja no se estira. */
+.filaConProductos { width: 92%; }
+.filaConProductos .burbuja { align-self: flex-start; }
 
 .burbuja {
   padding: 10px 12px;
@@ -175,9 +178,10 @@
   background: var(--blanco);
 }
 
-/* Móvil: el panel ocupa toda la pantalla y el botón flotante se oculta mientras está abierto
-   (se cierra con el botón del encabezado). 100dvh se encoge con el teclado gracias a interactiveWidget. */
-@media (max-width: 600px) {
+/* Móvil (vertical, o acostado: poca altura aunque sobre ancho): el panel ocupa toda la pantalla y el botón flotante
+   se oculta mientras está abierto (se cierra con el botón del encabezado). 100dvh se encoge con el teclado gracias
+   a interactiveWidget. */
+@media (max-width: 600px), (max-height: 500px) {
   .panel {
     inset: 0;
     width: auto;
@@ -193,4 +197,37 @@
     bottom: calc(12px + env(safe-area-inset-bottom, 0px));
   }
   .fabAbierto { display: none; }
+}
+
+/* Poca altura (teléfono acostado): encabezado en una fila, menos relleno y pie en una línea, para que la lista
+   de mensajes ocupe la mayor parte. Las áreas táctiles siguen en 40 px y ningún texto baja de 0,75 rem. */
+@media (max-height: 500px) {
+  .header { padding: 4px 10px; }
+  .titulo {
+    flex-direction: row;
+    align-items: baseline;
+    gap: 8px;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+  .demo { overflow: hidden; text-overflow: ellipsis; }
+  .nueva { padding: 4px 10px; }
+  .mensajes { padding: 8px 12px; gap: 8px; }
+  .burbuja { padding: 8px 10px; }
+  .form { padding: 6px 10px; }
+  .form input,
+  .form button { min-height: 40px; }
+  .form input { padding: 6px 12px; }
+  .pie {
+    padding: 2px 10px calc(2px + env(safe-area-inset-bottom, 0px));
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+/* Teclado abierto con el teléfono acostado: queda muy poca altura; se oculta el pie para dar espacio a la lista. */
+@media (max-height: 300px) {
+  .pie { display: none; }
 }

@@ -86,7 +86,7 @@ docker compose down              # detener y borrar el contenedor (la imagen se 
 
 ## Probar en un celular o con otras personas
 
-`npm run dev` no sirve para abrir la demo desde otro dispositivo: la página carga, pero el botón del chat no responde.
+`npm run dev` no funcionó al abrir la demo desde un celular; con `npm run build && npm start` o con Docker, sí.
 Usa el servidor de producción o Docker:
 
 ```bash

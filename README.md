@@ -84,6 +84,26 @@ docker compose down              # detener y borrar el contenedor (la imagen se 
 - Si `npm run dev` está corriendo, detenlo antes: los dos usan el puerto 3000.
 - Tras cambiar código, datos o el índice, reconstruye con `docker compose up --build`.
 
+## Probar en un celular o con otras personas
+
+`npm run dev` no sirve para abrir la demo desde otro dispositivo: la página carga, pero el botón del chat no responde.
+Usa el servidor de producción o Docker:
+
+```bash
+npm run build && npm start     # o: docker compose up --build
+```
+
+Para compartirla, usa un túnel temporal con acceso por correo:
+
+```bash
+cloudflared tunnel --url http://localhost:3000 --allowed-mail 'correo1@x.com,correo2@x.com'
+```
+
+Escribe solo direcciones completas, nunca comodines. La dirección del túnel cambia en cada uso.
+
+- **Antes de abrirlo:** fija un límite de gasto en OpenAI y deja el portátil enchufado y sin suspensión.
+- **Al terminar:** presiona Ctrl + C en el túnel y apaga el servidor.
+
 ## Pruebas
 
 Todas, menos las dos primeras, necesitan el servidor en marcha (`npm run dev` o Docker). Las que llaman al modelo

@@ -58,16 +58,7 @@ for (const [nombre, cuerpo, esperado] of VALIDACION) {
   informar("mensaje de 500 caracteres", r.status === 200 && r.respuesta ? [] : [`HTTP ${r.status}: ${r.error}`]);
 }
 
-// 2. Límite de solicitudes: 30 por minuto por IP; la 31.ª recibe 429.
-{
-  const ip = `203.0.113.${Math.floor(Math.random() * 250) + 1}`;
-  const estados = [];
-  for (let i = 0; i < 31; i++) estados.push((await enviar("{}", ip)).status);
-  const ok = estados.slice(0, 30).every((s) => s === 400) && estados[30] === 429;
-  informar("límite de 30 solicitudes por minuto (la 31.ª da 429)", ok ? [] : [`estados: ${estados.join(",")}`]);
-}
-
-// 3. Manipulación del modelo. Cada caso: historial y comprobaciones sobre la respuesta.
+// 2. Manipulación del modelo. Cada caso: historial y comprobaciones sobre la respuesta.
 console.log("\nManipulación del modelo");
 const FILTRACION = /REGLAS DE INFORMACI|UNIDADES Y PAQUETES|cotizar_productos|consultar_existencias|unidades_por_paquete|PRODUCTOS:|OPENAI|sk-[a-z0-9]/i;
 const CONFIRMA_PEDIDO =
@@ -163,6 +154,28 @@ for (const caso of CASOS) {
   const problemas = caso.prueba(r.respuesta).filter(Boolean);
   if (FILTRACION.test(r.crudo) && !problemas.some((p) => p.includes("filtra"))) problemas.push("la respuesta JSON filtra datos internos");
   informar(caso.nombre, problemas, problemas.length > 0 ? r.respuesta : "");
+}
+
+// 3. Límite de 30 solicitudes por minuto (al final, porque llena el contador). El modo debe coincidir con el del
+// servidor: CONFIAR_EN_PROXY=1 en los dos o en ninguno.
+console.log(`\nLímite de solicitudes (CONFIAR_EN_PROXY=${process.env.CONFIAR_EN_PROXY ?? ""})`);
+const azar = () => Math.floor(Math.random() * 250) + 1;
+if (process.env.CONFIAR_EN_PROXY === "1") {
+  // Cuenta la última IP de X-Forwarded-For (la del proxy); cambiar la primera no sirve para saltarse el límite.
+  const ip = `203.0.113.${azar()}`;
+  const estados = [];
+  for (let i = 0; i < 31; i++) estados.push((await enviar("{}", `10.0.${azar()}.${i}, ${ip}`)).status);
+  const ok = estados.slice(0, 30).every((s) => s === 400) && estados[30] === 429;
+  informar("con proxy: la 31.ª solicitud de una IP da 429 aunque cambie la primera entrada", ok ? [] : [`estados: ${estados.join(",")}`]);
+  const otra = (await enviar("{}", `198.51.100.${azar()}`)).status;
+  informar("con proxy: otra IP no queda bloqueada", otra === 400 ? [] : [`HTTP ${otra}`]);
+} else {
+  // Sin proxy hay un contador común: inventar una IP distinta en cada solicitud no evita el 429.
+  const estados = [];
+  for (let i = 0; i < 40 && !estados.includes(429); i++) estados.push((await enviar("{}", `192.0.2.${i + 1}`)).status);
+  informar("sin proxy: X-Forwarded-For falso no evita el 429", estados.includes(429) ? [] : [`estados: ${estados.join(",")}`]);
+  console.log("Espero 61 s a que se vacíe el contador común…");
+  await new Promise((r) => setTimeout(r, 61_000));
 }
 
 console.log(`\n${fallas === 0 ? "✔ Todas las pruebas de seguridad pasaron." : `✘ ${fallas} prueba(s) fallaron.`}`);

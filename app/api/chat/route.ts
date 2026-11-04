@@ -1,8 +1,8 @@
 import OpenAI from "openai";
 import { NextResponse } from "next/server";
 import { buscarPreguntas, buscarProductos, detectarTemasSinInformacion, productosMencionados } from "@/lib/datos";
-import { permitirSolicitud } from "@/lib/limite";
-import { LIMITES, MAX_TARJETAS, WHATSAPP } from "@/lib/config";
+import { claveDeCliente, permitirSolicitud } from "@/lib/limite";
+import { LIMITES, MAX_TARJETAS, TIEMPO_MAXIMO_CHAT_MS, WHATSAPP } from "@/lib/config";
 import { claveConfigurada, obtenerCliente, obtenerModelo, resumirError } from "@/lib/openai";
 import { INSTRUCCIONES, construirContexto, consultaDeBusqueda, partesDeBusqueda } from "@/lib/prompt";
 import { recuperar } from "@/lib/rag";
@@ -120,9 +120,7 @@ function describirError(e: unknown): { status: number; mensaje: string } {
 }
 
 export async function POST(request: Request) {
-  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "local";
-
-  if (!permitirSolicitud(ip)) {
+  if (!permitirSolicitud(claveDeCliente(request.headers))) {
     return NextResponse.json(
       { error: "Demasiadas solicitudes. Espera un momento e inténtalo de nuevo." },
       { status: 429 }
@@ -178,7 +176,7 @@ export async function POST(request: Request) {
         parallel_tool_calls: false,
         max_output_tokens: 1500,
         store: false,
-      });
+      }, { timeout: TIEMPO_MAXIMO_CHAT_MS, maxRetries: 0 });
 
       const llamadas = r.output.filter(
         (item): item is OpenAI.Responses.ResponseFunctionToolCall => item.type === "function_call"

@@ -37,8 +37,8 @@
     line-height: 1; 
     letter-spacing: 1px; 
 }
-.brandTag { 
-    font-size: 0.7rem; 
+.brandTag {
+    font-size: 0.75rem;
     color: var(--azul-oscuro); 
     font-weight: 600; 
 }

@@ -60,7 +60,9 @@ NO es oficial de BERPA ni está conectado a sus sistemas.
   parte de la clave). Tarjetas: los
   productos de la línea `PRODUCTOS:` más los que el texto nombra exactamente, en orden de aparición, hasta 8
   (`MAX_TARJETAS`); el prompt limita a 3 solo las sugerencias no pedidas y las variantes de un mismo producto.
-- `components/`: `Chatbot` (panel de chat), `ChatProduct` (tarjetas en el chat), `Header`, `CategoryExplorer`,
+- `components/`: `Chatbot` (panel de chat; en móvil ocupa toda la pantalla, con botón de cerrar en el encabezado,
+  Escape para cerrar y el botón flotante oculto; `viewport` con `viewportFit: "cover"` e
+  `interactiveWidget: "resizes-content"` en `app/layout.tsx`), `ChatProduct` (tarjetas en el chat), `Header`, `CategoryExplorer`,
   `ProductCard` (precio, existencias con `describirExistencias`, agotados atenuados), `Migas`, cada uno con su
   `.module.css`.
 - `lib/config.ts`: límites, WhatsApp y compra mínima ($80.000, sobre productos, sin domicilio).
@@ -82,7 +84,9 @@ NO es oficial de BERPA ni está conectado a sus sistemas.
   modelo usa ese número como paquetes, o es una cantidad suelta ("quiero 2", "un quesito"), la herramienta
   devuelve un error que pide preguntar. `buscar_productos` cae a `buscarPorNombre` si el semántico no encuentra nada.
 - `lib/openai.ts`: cliente, modelo (variables `OPENAI_API_KEY`, `OPENAI_MODEL`) y `resumirError` para los logs.
-- `lib/limite.ts`: límite de solicitudes en memoria por IP.
+- `lib/limite.ts`: límite de 30 solicitudes por minuto en memoria. `claveDeCliente` solo usa `X-Forwarded-For` (su
+  última entrada) con `CONFIAR_EN_PROXY=1`; si no, un contador común para todos.
+- `lib/config.ts` también fija `TIEMPO_MAXIMO_CHAT_MS` (20 s, sin reintentos, por llamada al modelo de chat).
 - `lib/formato.ts`: precios en COP y nivel de existencias. `lib/types.ts`: tipos compartidos.
 - `data/productos.json`: 300 productos ficticios (`verificado: false`), generados por
   `scripts/generar-productos.mjs`. `data/categorias.json`: categorías reales del sitio.

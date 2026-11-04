@@ -22,12 +22,31 @@ export default function Chatbot() {
   const [texto, setTexto] = useState("");
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const finRef = useRef<HTMLDivElement>(null);
+  const listaRef = useRef<HTMLDivElement>(null);
+  const botonRef = useRef<HTMLButtonElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const yaAbierto = useRef(false);
+
+  // Desplaza solo la lista de mensajes (scrollIntoView podía mover también la página de fondo en iOS).
+  useEffect(() => {
+    const lista = listaRef.current;
+    if (lista) lista.scrollTo({ top: lista.scrollHeight, behavior: "smooth" });
+  }, [mensajes, cargando, error, abierto]);
+
+  // Al cerrar el panel, el foco vuelve al botón flotante (en móvil estaba oculto mientras el panel ocupaba la pantalla).
+  useEffect(() => {
+    if (abierto) yaAbierto.current = true;
+    else if (yaAbierto.current) botonRef.current?.focus();
+  }, [abierto]);
 
   useEffect(() => {
-    finRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [mensajes, cargando, error, abierto]);
+    if (!abierto) return;
+    const alPresionar = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setAbierto(false);
+    };
+    window.addEventListener("keydown", alPresionar);
+    return () => window.removeEventListener("keydown", alPresionar);
+  }, [abierto]);
 
   useEffect(() => {
     return () => abortRef.current?.abort();
@@ -122,12 +141,22 @@ export default function Chatbot() {
               <strong>Asistente virtual</strong>
               <span className={styles.demo}>Demostración independiente</span>
             </div>
-            <button type="button" className={styles.nueva} onClick={nuevaConversacion}>
-              Nueva conversación
-            </button>
+            <div className={styles.acciones}>
+              <button type="button" className={styles.nueva} onClick={nuevaConversacion}>
+                Nueva conversación
+              </button>
+              <button
+                type="button"
+                className={styles.cerrar}
+                onClick={() => setAbierto(false)}
+                aria-label="Cerrar asistente"
+              >
+                ✕
+              </button>
+            </div>
           </header>
 
-          <div className={styles.mensajes} aria-live="polite">
+          <div ref={listaRef} className={styles.mensajes} aria-live="polite">
             <div className={`${styles.fila} ${styles.filaBot}`}>
               <div className={`${styles.burbuja} ${styles.bot}`}>{BIENVENIDA}</div>
             </div>
@@ -187,8 +216,6 @@ export default function Chatbot() {
                 )}
               </div>
             )}
-
-            <div ref={finRef} />
           </div>
 
           <form
@@ -217,8 +244,9 @@ export default function Chatbot() {
       )}
 
       <button
+        ref={botonRef}
         type="button"
-        className={styles.fab}
+        className={`${styles.fab} ${abierto ? styles.fabAbierto : ""}`}
         onClick={() => setAbierto(!abierto)}
         aria-label={abierto ? "Cerrar asistente" : "Abrir asistente virtual"}
       >

@@ -19,6 +19,9 @@ body {
   background: var(--fondo);
   color: var(--texto);
   line-height: 1.4;
+  /* Con viewportFit "cover", que el contenido no quede bajo la muesca en horizontal. */
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
 }
 
 button, input { font: inherit; }

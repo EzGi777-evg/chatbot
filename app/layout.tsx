@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Bebas_Neue, Poppins } from "next/font/google";
 import Header from "@/components/Header";
 import Chatbot from "@/components/Chatbot";
@@ -14,6 +14,15 @@ export const metadata: Metadata = {
     template: "%s · Demostración independiente, no oficial",
   },
   description: "Prototipo independiente de un chatbot para comercio electrónico. No es la tienda oficial de BERPA.",
+};
+
+// viewportFit "cover" activa env(safe-area-inset-*) en teléfonos con muesca; "resizes-content" hace que el teclado
+// encoja el área visible (Chrome en Android), así el campo del chat queda encima del teclado.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  interactiveWidget: "resizes-content",
 };
 
 // Estructura común a todas las páginas. El chat vive aquí, así que su conversación se conserva al navegar.

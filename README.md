@@ -23,7 +23,7 @@ son archivos JSON en `data/`.
   guarda nada). Convierte unidades a paquetes en el servidor ("30 panes" → 3 paquetes de 12) y pregunta cuando la
   cantidad es ambigua ("quiero 2" de un producto que viene por 12).
 - **Protecciones:** validación de entrada (500 caracteres por mensaje, 30 mensajes), límite de 30 solicitudes por
-  minuto por IP, nota de "demostración" cuando hay productos, y omisión del teléfono o la dirección del cliente si el
+  minuto (por IP solo detrás de un proxy, ver `CONFIAR_EN_PROXY`), nota de "demostración" cuando hay productos, y omisión del teléfono o la dirección del cliente si el
   modelo los repite.
 
 ## Requisitos
@@ -55,6 +55,7 @@ Van en `.env.local`, que **nunca** se sube a Git (está en `.gitignore`) ni entr
 | `OPENAI_API_KEY` | Clave de la API de OpenAI. Sin ella, modo simulado. | `sk-...` |
 | `OPENAI_MODEL` | Modelo de chat. | `gpt-6.1-terra` o `gpt-4o-mini` |
 | `OPENAI_EMBEDDING_MODEL` | Modelo de embeddings para el índice y las consultas. | `text-embedding-3-small` |
+| `CONFIAR_EN_PROXY` | `1` solo si el chat está detrás de un proxy propio que agrega `X-Forwarded-For`: el límite de 30 solicitudes por minuto se cuenta por IP (la última de ese encabezado). Vacío (lo normal en local y en Docker): un único límite de 30 por minuto para todos, porque sin proxy el encabezado lo puede inventar cualquiera. | vacío |
 
 **Elegir el modelo.** Medido con el evaluador (17 casos, 3 corridas por modelo, precios de lista):
 
@@ -93,7 +94,7 @@ gastan cuota de OpenAI y su resultado varía entre corridas: una falla aislada s
 | `npm run probar:privacidad` | Omisión de teléfonos y direcciones del cliente (30 casos). | No |
 | `npm run probar:slugs` | Las 60 rutas de subcategoría, sin colisiones. | No |
 | `npm run verificar:rutas` | 67 páginas con HTTP 200, 300 tarjetas y 404 para rutas inventadas. | No |
-| `npm run seguridad` | Validación, límite de solicitudes, instrucciones ocultas, extracción del prompt, historial falsificado, pedidos, datos personales y temas ajenos (22 casos). | Sí, 13 mensajes |
+| `npm run seguridad` | Validación, instrucciones ocultas, extracción del prompt, historial falsificado, pedidos, datos personales, temas ajenos y límite de solicitudes (22 casos; sin proxy espera 61 s al final para vaciar el límite). Usa el mismo `CONFIAR_EN_PROXY` que el servidor. | Sí, 13 mensajes |
 | `npm run evaluar` | Comportamiento: datos verificados y desconocidos, agotados, búsquedas por intención, unidades y paquetes, conversaciones de varios turnos (17 casos). | Sí, 23 mensajes |
 | `./scripts/probar.sh "mensaje" ...` | Envía mensajes sueltos e imprime la respuesta y las tarjetas. | Sí |
 | `npm run test:humo` | Todo lo anterior en orden, con un resumen final. | Sí, unos 40 mensajes |
@@ -136,7 +137,8 @@ Fallaron o variaron en alguna corrida:
   asistente elige la más económica, y con `gpt-4o-mini` a veces eligió la de 3 kg sin decirlo.
 - **Con `gpt-4o-mini`:** "¿Venden televisores?" a veces no dice claramente que no los hay, y las búsquedas por intención
   a veces sugieren más de 3 productos.
-- **Si OpenAI está lento o caído,** el chat puede tardar hasta ~65 s en mostrar el mensaje de error.
+- **Si OpenAI está lento o caído,** cada llamada al modelo espera hasta 20 s, sin reintentos, antes de mostrar el
+  mensaje de error.
 
 ## Estructura
 

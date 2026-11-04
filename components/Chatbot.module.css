@@ -1,7 +1,7 @@
 .fab {
   position: fixed;
-  right: 20px;
-  bottom: 20px;
+  right: calc(20px + env(safe-area-inset-right, 0px));
+  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
   width: 58px;
   height: 58px;
   border: 0;
@@ -16,9 +16,9 @@
 .panel {
   position: fixed;
   right: 20px;
-  bottom: 90px;
+  bottom: calc(90px + env(safe-area-inset-bottom, 0px));
   width: min(390px, calc(100vw - 24px));
-  height: min(620px, calc(100dvh - 110px));
+  height: min(620px, calc(100dvh - 110px - env(safe-area-inset-bottom, 0px)));
   display: flex;
   flex-direction: column;
   background: var(--blanco);
@@ -38,16 +38,22 @@
   gap: 8px;
 }
 .titulo { display: flex; flex-direction: column; }
-.demo { font-size: 0.7rem; color: var(--amarillo); }
-.nueva {
+.demo { font-size: 0.75rem; color: var(--amarillo); }
+.acciones { display: flex; align-items: center; gap: 6px; }
+.nueva,
+.cerrar {
+  min-height: 40px;
   background: transparent;
   color: var(--blanco);
   border: 1px solid rgba(255, 255, 255, 0.6);
   border-radius: 8px;
-  padding: 6px 8px;
-  font-size: 0.72rem;
 }
-.nueva:hover { background: rgba(255, 255, 255, 0.15); }
+.nueva { padding: 6px 10px; font-size: 0.75rem; }
+.cerrar { min-width: 40px; font-size: 1rem; }
+.nueva:hover,
+.cerrar:hover { background: rgba(255, 255, 255, 0.15); }
+.nueva:focus-visible,
+.cerrar:focus-visible { outline: 3px solid var(--amarillo); outline-offset: 2px; }
 
 .mensajes {
   flex: 1;
@@ -57,6 +63,7 @@
   flex-direction: column;
   gap: 10px;
   background: #f6f5fb;
+  overscroll-behavior: contain;
 }
 
 .fila { display: flex; flex-direction: column; gap: 6px; max-width: 92%; }
@@ -73,8 +80,14 @@
 .bot { background: var(--blanco); box-shadow: var(--sombra); border-bottom-left-radius: 4px; }
 .usuario { background: var(--azul); color: var(--blanco); border-bottom-right-radius: 4px; }
 
-.productos { display: flex; flex-direction: column; gap: 6px; width: 100%; }
-.nota { font-size: 0.68rem; color: #6b6b78; }
+/* Tarjetas compactas: dos columnas cuando caben (hasta 8 tarjetas por respuesta). */
+.productos {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 6px;
+  width: 100%;
+}
+.nota { font-size: 0.75rem; color: #6b6b78; }
 
 .sugerencias { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip {
@@ -82,8 +95,9 @@
   background: var(--blanco);
   color: var(--azul);
   border-radius: 999px;
-  padding: 6px 10px;
-  font-size: 0.78rem;
+  min-height: 40px;
+  padding: 6px 12px;
+  font-size: 0.8rem;
 }
 .chip:hover { background: #ebe6ff; }
 
@@ -120,8 +134,9 @@
   color: var(--blanco);
   border: 0;
   border-radius: 8px;
-  padding: 6px 10px;
-  font-size: 0.78rem;
+  min-height: 40px;
+  padding: 6px 12px;
+  font-size: 0.8rem;
 }
 
 .form {
@@ -136,6 +151,7 @@
   min-width: 0;
   border: 1px solid #cfcbe6;
   border-radius: 10px;
+  min-height: 44px;
   padding: 10px 12px;
   font-size: 16px;
   outline: none;
@@ -146,25 +162,35 @@
   color: var(--blanco);
   border: 0;
   border-radius: 10px;
+  min-height: 44px;
   padding: 0 14px;
 }
 .form button:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .pie {
-  font-size: 0.65rem;
+  font-size: 0.75rem;
   color: #6b6b78;
   text-align: center;
-  padding: 0 10px 8px;
+  padding: 0 10px calc(8px + env(safe-area-inset-bottom, 0px));
   background: var(--blanco);
 }
 
+/* Móvil: el panel ocupa toda la pantalla y el botón flotante se oculta mientras está abierto
+   (se cierra con el botón del encabezado). 100dvh se encoge con el teclado gracias a interactiveWidget. */
 @media (max-width: 600px) {
   .panel {
-    left: 12px;
-    right: 12px;
-    bottom: 84px;
+    inset: 0;
     width: auto;
-    height: calc(100dvh - 100px);
+    height: 100dvh;
+    border-radius: 0;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+    background: var(--azul);
   }
-  .fab { right: 12px; bottom: 12px; }
+  .fab {
+    right: calc(12px + env(safe-area-inset-right, 0px));
+    bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  }
+  .fabAbierto { display: none; }
 }
